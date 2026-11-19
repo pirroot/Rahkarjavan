@@ -1,0 +1,350 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // Use "sqlite" for development, "postgresql" for production
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String?
+  displayName   String?
+  password      String?
+  // OAuth fields (Google, GitHub, etc.)
+  provider      String?        // "credentials" | "google" | "github" | ...
+  providerId    String?
+  image         String?
+  emailVerified DateTime?
+  // Magic link tokens
+  magicToken    String?
+  magicExpires  DateTime?
+  role          UserRole       @default(USER)
+  avatar        String?
+  bio           String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  articles      Article[]
+  comments      Comment[]
+  contactMsgs   ContactMessage[]
+  uploadedMedia Media[]        @relation("UploadedMedia")
+
+  @@index([email])
+  @@index([provider, providerId])
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR
+  USER
+}
+
+model Video {
+  id            String         @id @default(cuid())
+  title         String
+  titleEn       String?
+  slug          String         @unique
+  description   String
+  descriptionEn String?
+  coverImage    String
+  videoUrl      String
+  // Storage metadata (when using S3/MinIO)
+  storageKey    String?        // e.g. "videos/2026/11/abc.mp4"
+  storageBucket String?        // e.g. "rahkarjavan-media"
+  fileSize      Int?           // bytes
+  mimeType      String?
+  duration      String         // e.g. "12:34"
+  durationSec   Int?           // duration in seconds (for schema.org)
+  views         Int            @default(0)
+  isFeatured    Boolean        @default(false)
+  isPublished   Boolean        @default(true)
+  videoType     VideoType      @default(NEWS)
+  sourceName    String?
+  sourceUrl     String?
+  categoryId    String?
+  category      Category?      @relation(fields: [categoryId], references: [id])
+  // SEO fields
+  metaTitle       String?
+  metaDescription String?
+  ogImage         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([isPublished, createdAt])
+  @@index([isFeatured])
+  @@index([categoryId])
+  @@index([videoType])
+}
+
+enum VideoType {
+  NEWS
+  INTERVIEW
+  REPORT
+  DOCUMENTARY
+  CHARITY
+  SPECIAL
+}
+
+model Article {
+  id            String         @id @default(cuid())
+  title         String
+  titleEn       String?
+  slug          String         @unique
+  excerpt       String
+  excerptEn     String?
+  content       String         // HTML content
+  contentEn     String?
+  coverImage    String
+  views         Int            @default(0)
+  isFeatured    Boolean        @default(false)
+  isPublished   Boolean        @default(true)
+  isBreaking    Boolean        @default(false)
+  authorId      String?
+  author        User?          @relation(fields: [authorId], references: [id])
+  categoryId    String?
+  category      Category?      @relation(fields: [categoryId], references: [id])
+  tags          String         // comma-separated tags
+  status        ArticleStatus  @default(PUBLISHED)
+  publishedAt   DateTime?
+  // SEO fields
+  metaTitle       String?
+  metaDescription String?
+  ogImage         String?
+  // Reading time estimate (minutes)
+  readingTime   Int?
+  // Source attribution (for aggregated news)
+  sourceUrl         String?      @unique          // original article URL (normalized, dedup key)
+  sourceId          String?                       // NewsSource id, if imported by aggregator
+  sourceName        String?                       // "خبرگزاری ایسنا" | ...
+  sourcePublishedAt DateTime?                     // when original was published
+  titleHash         String?                       // sha1(normalized title) — secondary dedup key
+  isAutoImported    Boolean     @default(false)    // imported by the news aggregator
+  newsSource        NewsSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  comments      Comment[]
+
+  @@index([isPublished, status, publishedAt])
+  @@index([isFeatured])
+  @@index([categoryId])
+  @@index([slug])
+  @@index([sourceId])
+  @@index([isAutoImported])
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+  SCHEDULED
+}
+
+model Category {
+  id            String         @id @default(cuid())
+  name          String
+  nameEn        String?
+  slug          String         @unique
+  description   String?
+  type          CategoryType   @default(ARTICLE)
+  color         String         @default("#dc2626")
+  createdAt     DateTime       @default(now())
+  videos        Video[]
+  articles      Article[]
+}
+
+enum CategoryType {
+  VIDEO
+  ARTICLE
+  BOTH
+}
+
+model Comment {
+  id            String         @id @default(cuid())
+  content       String
+  articleId     String?
+  article       Article?       @relation(fields: [articleId], references: [id])
+  userId        String?
+  user          User?          @relation(fields: [userId], references: [id])
+  authorName    String
+  authorEmail   String
+  isApproved    Boolean        @default(true)
+  // Rate limiting: track IP for spam prevention
+  authorIp      String?
+  createdAt     DateTime       @default(now())
+
+  @@index([articleId, isApproved, createdAt])
+  @@index([authorIp])
+}
+
+model ContactMessage {
+  id            String         @id @default(cuid())
+  name          String
+  email         String
+  subject       String
+  message       String
+  isRead        Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  userId        String?
+  user          User?          @relation(fields: [userId], references: [id])
+
+  @@index([isRead])
+}
+
+model SiteSetting {
+  id            String         @id @default(cuid())
+  key           String         @unique
+  value         String
+  updatedAt     DateTime       @updatedAt
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Tag {
+  id            String         @id @default(cuid())
+  name          String         @unique
+  slug          String         @unique
+  createdAt     DateTime       @default(now())
+}
+
+// Media Library - tracks all uploaded files
+model Media {
+  id            String         @id @default(cuid())
+  filename      String
+  storageKey    String         @unique
+  url           String
+  mimeType      String
+  size          Int
+  folder        String
+  uploadedById  String?
+  uploadedBy    User?          @relation("UploadedMedia", fields: [uploadedById], references: [id])
+  width         Int?
+  height        Int?
+  alt           String?
+  caption       String?
+  createdAt     DateTime       @default(now())
+
+  @@index([folder, createdAt])
+  @@index([mimeType])
+}
+
+// Rate limit tracking (in-memory would be lost on restart, so persist)
+model RateLimit {
+  id            String         @id @default(cuid())
+  key           String         // e.g. "comment:ip:1.2.3.4" or "login:email:x@y.z"
+  count         Int            @default(1)
+  expiresAt     DateTime
+  createdAt     DateTime       @default(now())
+
+  @@unique([key])
+  @@index([expiresAt])
+}
+
+// ============================================================
+// News Aggregator (rule-based, no AI)
+// ============================================================
+
+// A configured news source to crawl automatically.
+model NewsSource {
+  id              String   @id @default(cuid())
+  name            String                       // human-friendly name, e.g. "خبرگزاری ایسنا"
+  isActive        Boolean  @default(true)
+  // Discovery configuration (priority: rss -> listing -> sitemap)
+  rssUrl          String?                      // RSS/Atom feed URL
+  listingUrl      String?                      // HTML listing page (paired with linkSelector)
+  linkSelector    String?                      // CSS selector for article links on listingUrl
+  useSitemap      Boolean  @default(false)     // fall back to sitemap.xml / news-sitemap
+  // Extraction selectors (optional; fall back to Readability)
+  titleSelector   String?
+  bodySelector    String?
+  imageSelector   String?
+  dateSelector    String?
+  categorySelector String?
+  removeSelectors String   @default("")      // JSON array of CSS selectors to strip from the body
+  // Categorisation
+  defaultCategoryId String?
+  categoryMap     String   @default("")       // JSON: { "source-category": "site-category-id" }
+  // Video routing — when an article has an embedded video, save it as a Video instead of an Article.
+  videoCategoryId String?                       // category to use when a video is created
+  autoPublishVideo Boolean @default(true)        // publish imported videos directly
+  // Publishing
+  autoPublish     Boolean  @default(true)      // true = PUBLISHED, false = DRAFT
+  useOriginalDate Boolean  @default(true)      // publishedAt = original article date (when available)
+  addSourceCredit Boolean  @default(true)      // append "منبع: <name>" footer
+  // Rate limiting / scheduling
+  maxItemsPerRun  Int      @default(20)
+  intervalMinutes Int      @default(20)
+  respectRobots   Boolean  @default(true)
+  // Failure handling (auto-disable after 5 consecutive failures)
+  consecutiveFailures Int   @default(0)
+  autoDisabledAt  DateTime?
+  lastRunAt       DateTime?
+  lastStatus      String?                      // "OK" | "FAILED" | "SKIPPED" | "RUNNING"
+  lastError       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  // Relations
+  crawlLogs       CrawlLog[]
+  articles        Article[]
+  replaceRules    ReplaceRule[]
+  junkRules       JunkRule[]
+
+  @@index([isActive])
+  @@index([lastRunAt])
+}
+
+// "Find → Replace" rules to rebrand content. sourceId null = global.
+model ReplaceRule {
+  id           String  @id @default(cuid())
+  sourceId     String?
+  source       NewsSource? @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  find         String                       // text or regex pattern
+  replaceWith  String
+  isRegex      Boolean @default(false)
+  caseSensitive Boolean @default(false)
+  order        Int     @default(0)           // higher order applied first within same source
+  isActive     Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([sourceId, isActive, order])
+}
+
+// Regex patterns to remove junk lines (e.g. "انتهای پیام", "کد خبر: ...").
+model JunkRule {
+  id        String  @id @default(cuid())
+  sourceId  String?
+  source    NewsSource? @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  pattern   String                       // regex pattern
+  isActive  Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sourceId, isActive])
+}
+
+// Per-source run log. One row per crawl execution.
+model CrawlLog {
+  id          String   @id @default(cuid())
+  sourceId    String
+  source      NewsSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  startedAt   DateTime @default(now())
+  finishedAt  DateTime?
+  found       Int      @default(0)          // candidate articles discovered
+  created     Int      @default(0)          // successfully created (published or draft)
+  skipped     Int      @default(0)          // duplicates, too short, filtered out
+  failed      Int      @default(0)          // extraction or save errors
+  published   Int      @default(0)          // published directly
+  errors      String   @default("[]")      // JSON array of { url, error } strings
+  status      String   @default("RUNNING")  // RUNNING | OK | FAILED | SKIPPED
+  durationMs  Int?
+
+  @@index([sourceId, startedAt])
+  @@index([startedAt])
+}
