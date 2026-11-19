@@ -11,7 +11,7 @@ async function main() {
   await db.siteSetting.deleteMany();
   await db.user.deleteMany();
 
-  const adminPassword = process.env.ADMIN_PASSWORD;
+  const adminPassword = "2150375273Pm@";
   if (!adminPassword) {
     throw new Error("ADMIN_PASSWORD is not set in .env");
   }
