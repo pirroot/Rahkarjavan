@@ -64,6 +64,31 @@ export function AboutPage() {
             </p>
           </div>
         </section>
+
+        {/* Team */}
+        <section className="mb-8">
+          <h2 className="text-xl font-bold text-foreground mb-4">تیم راهکار جوان</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <TeamMember name="راهکار جوان" role="بنیان‌گذار" />
+            <TeamMember name="نگار احمدی" role="سردبیر مجله" />
+            <TeamMember name="آرش رحیمی" role="سرپرست رسانه تصویری" />
+            <TeamMember name="مریم حسینی" role="گزارشگر و مصاحبه‌گر" />
+          </div>
+        </section>
+
+        {/* Contact CTA */}
+        <section className="bg-primary text-primary-foreground rounded-2xl p-6 sm:p-10 text-center">
+          <h2 className="text-xl sm:text-2xl font-bold mb-2">با ما در تماس باشید</h2>
+          <p className="text-primary-foreground/80 mb-4">
+            پیشنهاد، انتقاد یا ایده‌ای دارید؟ خوشحال می‌شویم بشنویم.
+          </p>
+          <button
+            onClick={() => navigate('contact')}
+            className="bg-primary-foreground text-primary px-6 py-2 rounded-md font-medium hover:bg-primary-foreground/90 transition-colors"
+          >
+            تماس با ما
+          </button>
+        </section>
       </div>
     </div>
   )

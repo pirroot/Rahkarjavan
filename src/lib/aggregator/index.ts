@@ -2,6 +2,7 @@
 // پایگاه خبری راهکار جوان
 
 import { db } from '@/lib/db'
+import * as cheerio from 'cheerio'
 import {
   AggregatorSettings, SourceRunResult, getAggregatorSettings,
   normalizeUrl, parseStringArray, parseStringObject, titleHash,
@@ -12,6 +13,18 @@ import { cleanHtml, urlHost } from './clean'
 import { loadReplaceRules, applyRulesToArticle } from './replace'
 import { rehostImages, downloadAndStoreImage } from './images'
 import { alreadyImported, publishArticle } from './publish'
+
+/** Remove every <img> tag from an HTML body (used in text-only import mode). */
+function stripImages(html: string): string {
+  try {
+    const $ = cheerio.load(html)
+    $('img, figure, picture, source').remove()
+    return $.html()
+  } catch {
+    // fallback: naive strip
+    return html.replace(/<img[^>]*>/gi, '').replace(/<\/?(figure|picture|source)[^>]*>/gi, '')
+  }
+}
 
 const MAX_CONSECUTIVE_FAILURES = 5
 const AUTO_DISABLE_HOURS = 3
@@ -183,32 +196,50 @@ export async function runSource(
         )
 
         // re-host images (downloads each <img>)
-        const { html: finalHtml, coverImage } = await rehostImages(
-          contentHtml, extracted.url, cfg,
-        )
-        // Use coverImage from rehost (first image in body) or extracted.coverImage
-        let chosenCover = coverImage
-        if (!chosenCover && extracted.coverImage) {
-          // download cover separately
-          const r = await downloadAndStoreImage(extracted.coverImage, extracted.url, cfg)
-          if (r.ok && r.url) chosenCover = r.url
+        // When importImages is OFF, we publish text-only: drop all <img> tags
+        // from the body and save coverImage as empty. This is the "فقط متن،
+        // بدون تصویر" mode the client asked for to avoid copyright issues with
+        // republishing other agencies' photos.
+        let finalHtml = contentHtml
+        let chosenCover: string | undefined
+        if (cfg.importImages) {
+          const re = await rehostImages(contentHtml, extracted.url, cfg)
+          finalHtml = re.html
+          chosenCover = re.coverImage
+          if (!chosenCover && extracted.coverImage) {
+            // download cover separately
+            const r = await downloadAndStoreImage(extracted.coverImage, extracted.url, cfg)
+            if (r.ok && r.url) chosenCover = r.url
+          }
+        } else {
+          // strip every <img> tag from the body (text-only mode)
+          finalHtml = stripImages(contentHtml)
+          chosenCover = undefined
         }
 
-        // ---- Routing requirement: every imported item MUST have either a video
-        // or a cover image. Items without any media are rejected (logged).
+        // ---- Routing requirement ----
+        // - When importImages is ON: every imported item MUST have either a video
+        //   or a cover image (otherwise rejected).
+        // - When importImages is OFF (text-only mode): media is NOT required —
+        //   we save the article with empty coverImage. The client explicitly
+        //   asked for this ("تصویرش اصلاً نیاد، فقط متنش بیاد").
         const hasVideo = !!extracted.videoUrl
 
         // Global switch: when settings.importVideos is false, video pages are
-        // NOT saved as videos. If such a page has no cover image either, we skip
-        // it (we don't save a media-less article). If it does have a cover image,
-        // we save it as a plain Article (the video URL is dropped at publish).
-        if (hasVideo && !cfg.importVideos && !chosenCover) {
-          skipped++
-          errors.push({ url: item.url, error: 'video found but importVideos disabled and no cover image — skipped' })
-          continue
+        // NOT saved as videos. If such a page has no cover image either (and
+        // importImages is on), we skip it. If importImages is off, we save it
+        // as a plain Article (text-only).
+        if (hasVideo && !cfg.importVideos && !cfg.importImages && !chosenCover) {
+          // can't happen: importImages off means chosenCover is undefined
+          // but we still save text-only — handled below. Keep this branch as
+          // a no-op safety.
         }
 
-        if (!hasVideo && !chosenCover) {
+        if (!hasVideo && !chosenCover && !cfg.importImages) {
+          // text-only mode: allow saving without any media
+        }
+
+        if (!hasVideo && !chosenCover && cfg.importImages) {
           skipped++
           errors.push({ url: item.url, error: 'no media — skipped (no video and no image)' })
           continue

@@ -1,3 +1,7 @@
+// Local storage file server (catch-all for nested paths)
+// Serves files from /home/z/my-project/storage when using local storage provider
+// For S3 mode, this route is not used (files are served directly from S3)
+
 import { NextRequest, NextResponse } from 'next/server'
 import { readLocalFile, getStorageConfig } from '@/lib/storage'
 

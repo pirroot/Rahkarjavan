@@ -1,31 +1,39 @@
 // Upload endpoint — accepts multipart/form-data, stores via storage lib
-import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth'
-import { uploadFile, deleteFile } from '@/lib/storage'
+import { NextRequest, NextResponse } from "next/server";
+import { getSession } from "@/lib/auth";
+import { uploadFile, deleteFile } from "@/lib/storage";
 
-const MAX_SIZE = 50 * 1024 * 1024 // 50 MB
+const MAX_SIZE = 50 * 1024 * 1024; // 50 MB
 
 export async function POST(req: NextRequest) {
-  const session = await getSession()
-  if (!session || (session.role !== 'ADMIN' && session.role !== 'EDITOR')) {
-    return NextResponse.json({ error: 'دسترسی غیرمجاز' }, { status: 403 })
+  const session = await getSession();
+  if (!session || (session.role !== "ADMIN" && session.role !== "EDITOR")) {
+    return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
   }
 
   try {
-    const formData = await req.formData()
-    const file = formData.get('file')
-    const folder = (formData.get('folder') as string) || 'uploads'
+    const formData = await req.formData();
+    const file = formData.get("file");
+    const folder = (formData.get("folder") as string) || "uploads";
 
     if (!file || !(file instanceof File)) {
-      return NextResponse.json({ error: 'فایل ارسال نشده' }, { status: 400 })
+      return NextResponse.json({ error: "فایل ارسال نشده" }, { status: 400 });
     }
 
     if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: 'حجم فایل بیش از حد مجاز (۵۰ مگابایت)' }, { status: 413 })
+      return NextResponse.json(
+        { error: "حجم فایل بیش از حد مجاز (۵۰ مگابایت)" },
+        { status: 413 },
+      );
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer())
-    const result = await uploadFile(buffer, file.name, folder, file.type || 'application/octet-stream')
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const result = await uploadFile(
+      buffer,
+      file.name,
+      folder,
+      file.type || "application/octet-stream",
+    );
 
     return NextResponse.json({
       file: {
@@ -35,25 +43,32 @@ export async function POST(req: NextRequest) {
         size: result.size,
         mimeType: result.mimeType,
       },
-    })
+    });
   } catch (e: any) {
-    console.error('Upload error:', e)
-    return NextResponse.json({ error: e.message || 'خطا در آپلود' }, { status: 500 })
+    console.error("Upload error:", e);
+    return NextResponse.json(
+      { error: e.message || "خطا در آپلود" },
+      { status: 500 },
+    );
   }
 }
 
 // Delete endpoint — body: { key: string }
 export async function DELETE(req: NextRequest) {
-  const session = await getSession()
-  if (!session || (session.role !== 'ADMIN' && session.role !== 'EDITOR')) {
-    return NextResponse.json({ error: 'دسترسی غیرمجاز' }, { status: 403 })
+  const session = await getSession();
+  if (!session || (session.role !== "ADMIN" && session.role !== "EDITOR")) {
+    return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
   }
   try {
-    const { key } = await req.json()
-    if (!key) return NextResponse.json({ error: 'کلید فایل لازم است' }, { status: 400 })
-    await deleteFile(key)
-    return NextResponse.json({ success: true })
+    const { key } = await req.json();
+    if (!key)
+      return NextResponse.json(
+        { error: "کلید فایل لازم است" },
+        { status: 400 },
+      );
+    await deleteFile(key);
+    return NextResponse.json({ success: true });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message || 'خطا' }, { status: 500 })
+    return NextResponse.json({ error: e.message || "خطا" }, { status: 500 });
   }
 }

@@ -26,11 +26,14 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
+import { useT } from '@/lib/i18n'
 
 export function Header() {
-  const { navigate, page, hamburgerOpen, setHamburgerOpen, searchOpen, setSearchOpen, user } = useStore()
+  const { navigate, page, hamburgerOpen, setHamburgerOpen, searchOpen, setSearchOpen, user, lang } = useStore()
   const { logout } = useAuth()
   const settings = useSettings()
+  const t = useT()
   const [searchQuery, setSearchQuery] = useState('')
 
   const handleSearch = (e: React.FormEvent) => {
@@ -43,6 +46,9 @@ export function Header() {
 
   const siteName = settings.site_name || 'راهکار جوان'
   const logoUrl = settings.logo_url || ''
+  // English site name (from settings) when the UI is in English
+  const siteNameDisplay = lang === 'en' && settings.site_name_en ? settings.site_name_en : siteName
+  const slogan = lang === 'en' && settings.site_name_en ? t('slogan') : t('slogan')
 
   return (
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
@@ -59,27 +65,27 @@ export function Header() {
               <SheetContent side="right" className="w-[320px] sm:w-[400px] bg-sidebar border-l border-sidebar-border p-0">
                 <SheetHeader className="p-6 pb-4 border-b border-sidebar-border">
                   <SheetTitle className="text-right text-lg font-bold text-sidebar-foreground">
-                    منوی راهکار جوان
+                    {t('nav.menu')}
                   </SheetTitle>
                 </SheetHeader>
                 <div className="flex flex-col p-4 gap-1">
-                  <MenuLink icon={<Home className="h-4 w-4" />} label="رسانه تصویری" onClick={() => navigate('home')} active={page === 'home'} />
-                  <MenuLink icon={<Newspaper className="h-4 w-4" />} label="مجله خبری" onClick={() => navigate('magazine')} active={page === 'magazine'} />
-                  <MenuLink icon={<Info className="h-4 w-4" />} label="درباره ما" onClick={() => navigate('about')} active={page === 'about'} />
-                  <MenuLink icon={<Phone className="h-4 w-4" />} label="تماس با ما" onClick={() => navigate('contact')} active={page === 'contact'} />
+                  <MenuLink icon={<Home className="h-4 w-4" />} label={t('nav.home')} onClick={() => navigate('home')} active={page === 'home'} />
+                  <MenuLink icon={<Newspaper className="h-4 w-4" />} label={t('nav.magazine')} onClick={() => navigate('magazine')} active={page === 'magazine'} />
+                  <MenuLink icon={<Info className="h-4 w-4" />} label={t('nav.about')} onClick={() => navigate('about')} active={page === 'about'} />
+                  <MenuLink icon={<Phone className="h-4 w-4" />} label={t('nav.contact')} onClick={() => navigate('contact')} active={page === 'contact'} />
 
                   <div className="my-2 h-px bg-sidebar-border" />
 
                   {user ? (
                     <>
-                      <MenuLink icon={<UserIcon className="h-4 w-4" />} label="پنل کاربری" onClick={() => navigate('profile')} active={page === 'profile'} />
+                      <MenuLink icon={<UserIcon className="h-4 w-4" />} label={t('nav.profile')} onClick={() => navigate('profile')} active={page === 'profile'} />
                       {(user.role === 'ADMIN' || user.role === 'EDITOR') && (
-                        <MenuLink icon={<Settings className="h-4 w-4" />} label="پنل مدیریت" onClick={() => navigate('admin')} active={page === 'admin'} />
+                        <MenuLink icon={<Settings className="h-4 w-4" />} label={t('nav.admin')} onClick={() => navigate('admin')} active={page === 'admin'} />
                       )}
-                      <MenuLink icon={<LogOut className="h-4 w-4" />} label="خروج" onClick={logout} active={false} danger />
+                      <MenuLink icon={<LogOut className="h-4 w-4" />} label={t('nav.logout')} onClick={logout} active={false} danger />
                     </>
                   ) : (
-                    <MenuLink icon={<UserIcon className="h-4 w-4" />} label="ورود / ثبت‌نام" onClick={() => navigate('auth')} active={page === 'auth'} />
+                    <MenuLink icon={<UserIcon className="h-4 w-4" />} label={t('nav.login')} onClick={() => navigate('auth')} active={page === 'auth'} />
                   )}
                 </div>
               </SheetContent>
@@ -102,8 +108,8 @@ export function Header() {
                 </div>
               )}
               <div className="hidden sm:flex flex-col items-start leading-tight">
-                <span className="text-base font-bold text-foreground">{siteName}</span>
-                <span className="text-[10px] text-muted-foreground">رسانه تصویری - محله خبری</span>
+                <span className="text-base font-bold text-foreground">{siteNameDisplay}</span>
+                <span className="text-[10px] text-muted-foreground">{slogan}</span>
               </div>
             </button>
           </div>
@@ -113,7 +119,7 @@ export function Header() {
             <form onSubmit={handleSearch} className="relative">
               <Input
                 type="text"
-                placeholder="جستجوی خبر..."
+                placeholder={t('search.placeholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="bg-secondary border-border pr-9 focus-visible:ring-primary"
@@ -126,6 +132,8 @@ export function Header() {
 
           {/* Right actions */}
           <div className="flex items-center gap-2">
+            {/* Language toggle (fa ⇄ en) */}
+            <LanguageSwitcher />
             <Button
               variant="ghost"
               size="icon"
@@ -161,7 +169,7 @@ export function Header() {
             <form onSubmit={handleSearch} className="relative">
               <Input
                 type="text"
-                placeholder="جستجوی خبر..."
+                placeholder={t('search.placeholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 autoFocus
@@ -212,15 +220,16 @@ function MenuLink({
 }
 
 function BreakingNewsTicker() {
-  const { navigate } = useStore()
-  const [items, setItems] = useState<{ id: string; title: string; slug: string }[]>([])
+  const { navigate, lang } = useStore()
+  const t = useT()
+  const [items, setItems] = useState<{ id: string; title: string; titleEn?: string | null; slug: string }[]>([])
 
   useEffect(() => {
     fetch('/api/articles?sort=latest&limit=8')
       .then((r) => r.json())
       .then((d) => {
         if (d.articles) {
-          setItems(d.articles.map((a: any) => ({ id: a.id, title: a.title, slug: a.slug })))
+          setItems(d.articles.map((a: any) => ({ id: a.id, title: a.title, titleEn: a.titleEn, slug: a.slug })))
         }
       })
       .catch(() => {})
@@ -232,7 +241,7 @@ function BreakingNewsTicker() {
     <div className="bg-primary text-primary-foreground py-1.5 overflow-hidden border-t border-primary-foreground/10">
       <div className="container mx-auto px-4 flex items-center gap-3">
         <span className="bg-primary-foreground text-primary px-2 py-0.5 text-xs font-bold rounded shrink-0">
-          آخرین خبرها
+          {t('ticker.label')}
         </span>
         <div className="flex-1 overflow-hidden">
           <div className="flex gap-8 animate-marquee whitespace-nowrap text-sm">
@@ -242,7 +251,7 @@ function BreakingNewsTicker() {
                 className="text-primary-foreground/90 cursor-pointer hover:text-primary-foreground"
                 onClick={() => navigate('article', { slug: item.slug })}
               >
-                {item.title}
+                {lang === 'en' && item.titleEn ? item.titleEn : item.title}
               </span>
             ))}
           </div>

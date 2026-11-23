@@ -13,7 +13,9 @@ interface ArticleCardProps {
 }
 
 export function ArticleCard({ article, variant = 'default', className }: ArticleCardProps) {
-  const { navigate } = useStore()
+  const { navigate, lang } = useStore()
+  // Show the English title when the UI is in English and a translation exists.
+  const displayTitle = lang === 'en' && article.titleEn ? article.titleEn : article.title
 
   if (variant === 'horizontal') {
     return (
@@ -22,12 +24,18 @@ export function ArticleCard({ article, variant = 'default', className }: Article
         className="group flex gap-3 text-right w-full hover:bg-secondary/50 p-2 rounded-md transition-colors"
       >
         <div className="w-24 h-20 shrink-0 rounded-md overflow-hidden bg-secondary">
-          <img
-            src={article.coverImage}
-            alt={article.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-            loading="lazy"
-          />
+          {article.coverImage ? (
+            <img
+              src={article.coverImage}
+              alt={article.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+              loading="lazy"
+            />
+          ) : (
+            <div className="w-full h-full brand-gradient flex items-center justify-center">
+              <span className="text-primary-foreground font-bold text-xs">{article.sourceName?.charAt(0) || 'خ'}</span>
+            </div>
+          )}
         </div>
         <div className="flex-1 min-w-0 py-1">
           {article.category && (
@@ -39,7 +47,7 @@ export function ArticleCard({ article, variant = 'default', className }: Article
             </span>
           )}
           <h4 className="text-sm font-medium text-foreground line-clamp-2 group-hover:text-primary transition-colors">
-            {article.title}
+            {displayTitle}
           </h4>
           <div className="text-[11px] text-muted-foreground mt-1">
             {timeAgo(article.publishedAt || article.createdAt)}
@@ -56,12 +64,18 @@ export function ArticleCard({ article, variant = 'default', className }: Article
         className="group text-right w-full"
       >
         <div className="relative aspect-video rounded-md overflow-hidden bg-secondary mb-2">
-          <img
-            src={article.coverImage}
-            alt={article.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            loading="lazy"
-          />
+          {article.coverImage ? (
+            <img
+              src={article.coverImage}
+              alt={article.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              loading="lazy"
+            />
+          ) : (
+            <div className="w-full h-full brand-gradient flex items-center justify-center">
+              <span className="text-primary-foreground font-bold text-sm">{article.sourceName?.charAt(0) || 'خ'}</span>
+            </div>
+          )}
           {article.isBreaking && (
             <span className="absolute top-1 right-1 bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0.5 rounded font-bold">
               فوری
@@ -69,7 +83,7 @@ export function ArticleCard({ article, variant = 'default', className }: Article
           )}
         </div>
         <h4 className="text-xs font-medium text-foreground line-clamp-2 group-hover:text-primary transition-colors">
-          {article.title}
+          {displayTitle}
         </h4>
       </button>
     )
@@ -84,13 +98,19 @@ export function ArticleCard({ article, variant = 'default', className }: Article
           className
         )}
       >
-        <div className="aspect-[16/10] sm:aspect-[16/9] overflow-hidden bg-secondary">
-          <img
-            src={article.coverImage}
-            alt={article.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-            loading="lazy"
-          />
+        <div className={`aspect-[16/10] sm:aspect-[16/9] overflow-hidden bg-secondary ${article.coverImage ? '' : 'brand-gradient'}`}>
+          {article.coverImage ? (
+            <img
+              src={article.coverImage}
+              alt={article.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+              loading="lazy"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <span className="text-primary-foreground font-bold text-3xl opacity-50">{article.sourceName?.charAt(0) || 'ر'}</span>
+            </div>
+          )}
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
@@ -117,7 +137,7 @@ export function ArticleCard({ article, variant = 'default', className }: Article
             </span>
           )}
           <h3 className="text-white font-bold text-lg sm:text-2xl leading-tight mb-2 line-clamp-2 group-hover:text-primary transition-colors text-balance">
-            {article.title}
+            {displayTitle}
           </h3>
           <p className="text-white/80 text-sm line-clamp-2 mb-3 hidden sm:block">
             {article.excerpt}
@@ -150,13 +170,19 @@ export function ArticleCard({ article, variant = 'default', className }: Article
         className
       )}
     >
-      <div className="relative aspect-video overflow-hidden bg-secondary">
-        <img
-          src={article.coverImage}
-          alt={article.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          loading="lazy"
-        />
+      <div className={`relative aspect-video overflow-hidden bg-secondary ${article.coverImage ? '' : 'brand-gradient'}`}>
+        {article.coverImage ? (
+          <img
+            src={article.coverImage}
+            alt={article.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-primary-foreground font-bold text-2xl opacity-50">{article.sourceName?.charAt(0) || 'ر'}</span>
+          </div>
+        )}
         <div className="absolute top-2 right-2 flex gap-1">
           {article.isBreaking && (
             <span className="bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0.5 rounded font-bold">
@@ -180,7 +206,7 @@ export function ArticleCard({ article, variant = 'default', className }: Article
       </div>
       <div className="p-3 flex flex-col flex-1">
         <h3 className="font-medium text-foreground text-sm leading-6 line-clamp-2 group-hover:text-primary transition-colors mb-2">
-          {article.title}
+          {displayTitle}
         </h3>
         <p className="text-xs text-muted-foreground line-clamp-2 mb-3 flex-1">
           {article.excerpt}

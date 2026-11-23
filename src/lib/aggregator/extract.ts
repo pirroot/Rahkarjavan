@@ -81,9 +81,30 @@ export async function extractArticle(
     }
   }
   if (!rawText || rawText.length < settings.minContentLength) {
+    // Fall back to og:description (the long description meta tag). This is
+    // how SPA news sites like farsnews.ir expose the article body — they
+    // server-render only the meta tags, not the article body, so Readability
+    // finds nothing. The og:description is the lead paragraph(s), which is
+    // exactly what the client wants for "copy the original text".
+    //
+    // For SPA sources we accept a shorter body than the global minContentLength
+    // (a single lead paragraph is enough for a "Fars:" byline + source credit).
+    const ogDesc = cleanText($('meta[property="og:description"]').attr('content') || '')
+                || cleanText($('meta[name="description"]').attr('content') || '')
+    if (ogDesc && ogDesc.length >= 80) {
+      bodyHtml = `<p>${escapeHtml(ogDesc)}</p>`
+      rawText = ogDesc
+    }
+  }
+  if (!rawText || rawText.length < 80) {
     return null
   }
   if (!title) return null
+
+  // ---- Strip site-name prefix from og:title ----
+  // Many SPA news sites (farsnews.ir) prepend "fars | " to og:title. Drop it
+  // so the imported title is just the headline.
+  title = stripSitePrefix(title)
 
   // ---- Cover image ----
   let coverImage: string | undefined
@@ -152,6 +173,31 @@ export async function extractArticle(
 
 function cleanText(s: string): string {
   return s.replace(/\s+/g, ' ').replace(/\u200c/g, '\u200c').trim()
+}
+
+/** Escape HTML special characters for safe insertion into a <p> tag. */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/**
+ * Strip a leading "SiteName | " or "SiteName - " prefix from a title.
+ * Sites like farsnews.ir expose og:title as "fars | <headline>". When we copy
+ * the title to our site we want just the headline, never the source prefix.
+ */
+function stripSitePrefix(title: string): string {
+  // "fars | headline"  →  "headline"
+  let t = title.replace(/^[A-Za-z\u0600-\u06FF][A-Za-z0-9\u0600-\u06FF _.&-]*\s*[\|\-–—]\s+/u, (m) => {
+    // only strip if the prefix is short (1-15 chars) — a real headline can
+    // contain " | " too, but a source-name prefix is short.
+    return m.trim().length <= 18 ? '' : m
+  })
+  return t.trim()
 }
 
 function resolveUrl(src: string, base: string): string {

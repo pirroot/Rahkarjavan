@@ -1,3 +1,12 @@
+// Prisma schema for Rahkar Javan News Agency
+// پایگاه خبری راهکار جوان
+//
+// This schema works with BOTH SQLite (dev) and PostgreSQL (production).
+// To switch to PostgreSQL:
+//   1. Set DATABASE_URL=postgresql://user:pass@host:5432/dbname
+//   2. Change provider below to "postgresql"
+//   3. Run: bun run db:migrate prod
+
 generator client {
   provider = "prisma-client-js"
 }

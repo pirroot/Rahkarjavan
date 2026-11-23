@@ -1,3 +1,7 @@
+// Storage abstraction layer
+// Supports S3-compatible providers (AWS S3, MinIO, DigitalOcean Spaces, etc.)
+// Falls back to local file storage for development
+
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { promises as fs } from 'fs'
@@ -44,7 +48,7 @@ export function getStorageConfig(): StorageConfig {
   } else {
     _config = {
       provider: 'local',
-      localDir: process.env.STORAGE_LOCAL_DIR || 'storage',
+      localDir: process.env.STORAGE_LOCAL_DIR || '/home/z/my-project/storage',
       localPublicUrl: process.env.STORAGE_LOCAL_URL || '/api/storage',
     }
   }

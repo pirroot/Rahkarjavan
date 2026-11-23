@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { VisualMediaHome } from '@/components/pages/VisualMediaHome'
+import { VideoHome } from '@/components/pages/VideoHome'
 import { MagazineHome } from '@/components/pages/MagazineHome'
 import { VideoDetailPage } from '@/components/pages/VideoDetailPage'
 import { ArticleDetailPage } from '@/components/pages/ArticleDetailPage'
@@ -19,13 +20,23 @@ import { AdminPanelPage } from '@/components/pages/AdminPanelPage'
 import { LegalPage } from '@/components/pages/LegalPage'
 
 export default function Home() {
-  const { page, params, navigate, theme, setTheme } = useStore()
+  const { page, params, navigate, theme, setTheme, settings, setLang } = useStore()
   useAuth() // Initialize auth session
+
+  // The admin chooses what the homepage shows: "article" (default) or "video".
+  // When "video", the homepage renders VideoHome (a video feed) instead of the
+  // article-based VisualMediaHome.
+  const homeMode = settings.home_content_type === 'video' ? 'video' : 'article'
 
   // On mount, parse URL hash to determine initial page
   useEffect(() => {
     setTheme('dark') // Always dark theme (matches reference design)
     if (typeof window !== 'undefined') {
+      // Restore the language the visitor last picked (fa is default)
+      try {
+        const savedLang = window.localStorage.getItem('rj_lang')
+        if (savedLang === 'en' || savedLang === 'fa') setLang(savedLang)
+      } catch {}
       const hash = window.location.hash.slice(1)
       if (hash) {
         const parsed = parseHash(hash)
@@ -56,7 +67,7 @@ export default function Home() {
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
       <main className="flex-1">
-        {page === 'home' && <VisualMediaHome />}
+        {page === 'home' && (homeMode === 'video' ? <VideoHome /> : <VisualMediaHome />)}
         {page === 'magazine' && <MagazineHome />}
         {page === 'video' && <VideoDetailPage slug={params.slug} />}
         {page === 'article' && <ArticleDetailPage slug={params.slug} />}

@@ -311,15 +311,22 @@ function SourceForm({ initial, categories, onCancel, onSaved }: SourceFormProps)
         {/* Discovery */}
         <TabsContent value="discovery" className="space-y-3 pt-3">
           <Field label="نام منبع" required>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="مثلاً خبرگزاری ایسنا" />
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="مثلاً خبرگزاری فارس — سیاسی" />
           </Field>
-          <Field label="آدرس RSS/Atom (اولویت اول)">
-            <Input value={rssUrl} onChange={(e) => setRssUrl(e.target.value)} placeholder="https://example.com/rss" dir="ltr" />
+          <Field label="آدرس RSS یا sitemap (ساده‌ترین راه)">
+            <Input value={rssUrl} onChange={(e) => setRssUrl(e.target.value)} placeholder="https://www.tasnimnews.com/fa/rss/feed/0/0/0/ یا https://farsnews.ir/sitemaps/contents/index2026.xml" dir="ltr" />
           </Field>
-          <Field label="آدرس لیست خبرها (اگر RSS نبود)">
+          <p className="text-xs text-muted-foreground leading-6 -mt-2">
+            این فیلد هم RSS می‌پذیرد و هم sitemap. آدرس RSS معمولاً شبیه{' '}
+            <code dir="ltr" className="bg-muted px-1 rounded">/rss</code> یا{' '}
+            <code dir="ltr" className="bg-muted px-1 rounded">/feed</code> است.
+            برای فارس که RSS ندارد، آدرس sitemap سالی را بگذارید (مثال‌های آماده
+            در راهنمای «یادگیری»). این فیلد کافی است؛ بقیته‌ی فیلدها اختیاری.
+          </p>
+          <Field label="آدرس لیست خبرها (فقط اگر RSS نداشتید)">
             <Input value={listingUrl} onChange={(e) => setListingUrl(e.target.value)} placeholder="https://example.com/news" dir="ltr" />
           </Field>
-          <Field label="سلکتور CSS لینک خبرها در صفحه لیست">
+          <Field label="سلکتور CSS لینک خبرها در صفحه لیست (در کنار فیلد بالا)">
             <Input value={linkSelector} onChange={(e) => setLinkSelector(e.target.value)} placeholder="a.news-link, article h3 a" dir="ltr" />
           </Field>
           <Field label="استفاده از sitemap.xml اگر دو روش بالا جواب نداد">

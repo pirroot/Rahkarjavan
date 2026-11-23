@@ -83,6 +83,7 @@ export const useStore = create<AppState>((set, get) => ({
     if (typeof window !== 'undefined') {
       document.documentElement.lang = lang
       document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr'
+      try { window.localStorage.setItem('rj_lang', lang) } catch {}
     }
   },
 
@@ -117,7 +118,10 @@ function buildHash(page: PageKey, params: Record<string, string>): string {
   if (page === 'contact') return '/contact'
   if (page === 'auth') return '/auth'
   if (page === 'profile') return '/profile'
-  if (page === 'admin') return '/admin'
+  if (page === 'admin') {
+    // Deep-link to a specific admin section when present, e.g. /admin?section=aggregator
+    return params.section ? `/admin?section=${encodeURIComponent(params.section)}` : '/admin'
+  }
   if (page === 'legal') return '/legal'
   if (page === 'search') return `/search?q=${encodeURIComponent(params.q || '')}`
   if (page === 'category') return `/category/${params.slug || ''}`
@@ -146,7 +150,7 @@ export function parseHash(hash: string): { page: PageKey; params: Record<string,
   if (parts[0] === 'contact') return { page: 'contact', params: {} }
   if (parts[0] === 'auth') return { page: 'auth', params: {} }
   if (parts[0] === 'profile') return { page: 'profile', params: {} }
-  if (parts[0] === 'admin') return { page: 'admin', params: {} }
+  if (parts[0] === 'admin') return { page: 'admin', params: { section: query.get('section') || '' } }
   if (parts[0] === 'legal') return { page: 'legal', params: {} }
   if (parts[0] === 'search') {
     return { page: 'search', params: { q: query.get('q') || '' } }

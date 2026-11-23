@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Save, Upload, X, Loader2, ImageIcon } from 'lucide-react'
+import { Save, Upload, X, Loader2, ImageIcon, LayoutDashboard, Video, Newspaper } from 'lucide-react'
 import { toast } from 'sonner'
 
 export function AdminSettings() {
@@ -86,6 +86,58 @@ export function AdminSettings() {
           )}
         </Button>
       </div>
+
+      {/* Homepage content type — what shows on the front page */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <LayoutDashboard className="h-4 w-4 text-primary" />
+            محتوای صفحه اصلی
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground leading-6">
+            انتخاب کنید صفحه‌ی اول سایت (رسانه تصویری) چه نوع محتوایی نمایش دهد. با تغییر این
+            گزینه و ذخیره، صفحه‌ی اصلی بلافاصله تغییر می‌کند.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => update('home_content_type', 'article')}
+              className={`flex items-start gap-3 rounded-lg border p-4 text-right transition-colors ${
+                (settings.home_content_type || 'article') === 'article'
+                  ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                  : 'border-border hover:border-primary/40'
+              }`}
+            >
+              <Newspaper className="h-6 w-6 text-primary shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-foreground">خبر (مقاله)</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-5">
+                  صفحه‌ی اصلی اخبار متنی را نشان می‌دهد (پیش‌فرض).
+                </p>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => update('home_content_type', 'video')}
+              className={`flex items-start gap-3 rounded-lg border p-4 text-right transition-colors ${
+                settings.home_content_type === 'video'
+                  ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                  : 'border-border hover:border-primary/40'
+              }`}
+            >
+              <Video className="h-6 w-6 text-primary shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-foreground">ویدیو</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-5">
+                  صفحه‌ی اصلی ویدیوهای منتشرشده را نشان می‌دهد.
+                </p>
+              </div>
+            </button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Brand: Logo + Favicon */}
       <Card>

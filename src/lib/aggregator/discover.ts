@@ -29,6 +29,19 @@ export async function discoverArticles(
   respectRobots: boolean,
 ): Promise<DiscoveredItem[]> {
   if (cfg.rssUrl) {
+    // If the user pasted a sitemap URL into the "RSS / discovery URL" field
+  // (e.g. https://farsnews.ir/sitemaps/contents/2026/11/23/index001.xml),
+  // treat it as a sitemap rather than an RSS feed. Many news sites (Fars,
+  // IRNA, ...) don't expose RSS but do expose dated sitemaps.
+    const lower = cfg.rssUrl.toLowerCase()
+    if (lower.endsWith('.xml') || lower.includes('sitemap') || lower.includes('/sitemap')) {
+      try {
+        const items = await discoverFromSitemapUrl(cfg.rssUrl, settings, limit, respectRobots, cfg.linkSelector || undefined)
+        if (items.length) return items
+      } catch {
+        // fall through to RSS
+      }
+    }
     try {
       const items = await discoverFromRss(cfg.rssUrl, settings, limit)
       if (items.length) return items
@@ -110,9 +123,9 @@ async function discoverFromListing(
     const $el = $(el)
     let href = $el.attr('href') || $el.find('a').first().attr('href') || ''
     if (!href) return
-    href = resolveUrl(href, baseUrl)
-    if (!href) return
-    const norm = normalizeUrl(href)
+    const resolved = resolveUrl(href, baseUrl)
+    if (!resolved) return
+    const norm = normalizeUrl(resolved)
     if (seen.has(norm)) return
     seen.add(norm)
     const title = ($el.attr('title') || $el.text() || '').trim() || undefined
@@ -146,6 +159,80 @@ async function discoverFromSitemap(
     }
   }
   return []
+}
+
+/**
+ * Discover from an explicit sitemap URL the admin pasted. Handles nested
+ * sitemap indexes: if the top document is a <sitemapindex>, dive into the
+ * first child sitemaps (newest first, since they are listed newest-first by
+ * most news sites) until we have `limit` article URLs. Supports an optional
+ * `pathFilter` (substring match against the URL path) so a source can be
+ * restricted to a category, e.g. "politics" or "nojavan".
+ */
+async function discoverFromSitemapUrl(
+  sitemapUrl: string,
+  settings: AggregatorSettings,
+  limit: number,
+  respectRobots: boolean,
+  pathFilter?: string,
+): Promise<DiscoveredItem[]> {
+  const items: DiscoveredItem[] = []
+  const seen = new Set<string>()
+  // queue of sitemaps to fetch; start with the user-supplied one
+  const queue: string[] = [sitemapUrl]
+  let fetchedSitemaps = 0
+  const MAX_SITEMAPS = 5  // safety cap to avoid runaway crawls
+
+  while (queue.length && items.length < limit && fetchedSitemaps < MAX_SITEMAPS) {
+    const url = queue.shift()!
+    fetchedSitemaps++
+    try {
+      const res = await fetchPage(url, settings, { respectRobots })
+      if (!res.ok) continue
+      const $ = cheerio.load(res.html, { xml: true })
+      // urlset → article URLs
+      let foundUrls = 0
+      $('url > loc').each((_, el) => {
+        if (items.length >= limit) return false
+        const v = $(el).text().trim()
+        if (!v) return
+        // optional path filter: keep only URLs whose path contains the filter
+        // (case-insensitive). Lets the admin make a "Fars politics" source
+        // that only imports /politics/... items.
+        if (pathFilter) {
+          try {
+            const p = new URL(v).pathname.toLowerCase()
+            if (!p.includes(pathFilter.toLowerCase())) return
+          } catch { /* keep */ }
+        }
+        // Skip user-comment URLs on community-driven sites like farsnews.ir,
+        // where sitemaps include user profiles/comment pages we don't want.
+        if (/\/user\d/i.test(v) || /\/users?\//i.test(v)) return
+        const norm = normalizeUrl(v)
+        if (seen.has(norm)) return
+        seen.add(norm)
+        items.push({ url: norm })
+        foundUrls++
+      })
+      // sitemapindex → enqueue child sitemaps (newest-first)
+      const childSm: string[] = []
+      $('sitemap > loc').each((_, el) => {
+        const v = $(el).text().trim()
+        if (v) childSm.push(v)
+      })
+      if (childSm.length && items.length < limit) {
+        // children are typically listed newest-first; take a few
+        for (const c of childSm.slice(0, 3)) queue.push(c)
+      }
+      if (foundUrls === 0 && childSm.length === 0) {
+        // nothing useful here
+        continue
+      }
+    } catch {
+      continue
+    }
+  }
+  return items
 }
 
 function parseSitemap(xml: string, sourceUrl: string, limit: number): DiscoveredItem[] {

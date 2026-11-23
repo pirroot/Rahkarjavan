@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useStore } from '@/lib/store'
+import { useT } from '@/lib/i18n'
 import { ArticleCard } from '@/components/article/ArticleCard'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -12,6 +13,7 @@ const PAGE_SIZE = 12
 
 export function VisualMediaHome() {
   const { navigate } = useStore()
+  const t = useT()
   const [heroArticle, setHeroArticle] = useState<any | null>(null)
   const [sideFeatured, setSideFeatured] = useState<any[]>([])
   const [articles, setArticles] = useState<any[]>([])
@@ -124,13 +126,13 @@ export function VisualMediaHome() {
         <div className="flex items-center gap-2 mb-4">
           <Sparkles className="h-5 w-5 text-primary" />
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-foreground">آخرین اخبار</h2>
-            <p className="text-xs text-muted-foreground hidden sm:block">اسکرول کنید تا اخبار بیشتر بارگذاری شوند</p>
+            <h2 className="text-lg sm:text-xl font-bold text-foreground">{t('home.latest')}</h2>
+            <p className="text-xs text-muted-foreground hidden sm:block">{t('home.latest.hint')}</p>
           </div>
         </div>
         {articles.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">
-            هنوز خبری منتشر نشده است.
+            {t('home.noNews')}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -145,11 +147,11 @@ export function VisualMediaHome() {
           {loadingMore && (
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
               <Loader2 className="h-4 w-4 animate-spin" />
-              در حال بارگذاری...
+              {t('home.loading')}
             </div>
           )}
           {!hasMore && articles.length > 0 && (
-            <div className="text-xs text-muted-foreground">به انتهای اخبار رسیدید</div>
+            <div className="text-xs text-muted-foreground">{t('home.endOfNews')}</div>
           )}
         </div>
       </section>
@@ -160,6 +162,7 @@ export function VisualMediaHome() {
 // Hero: featured article — clickable to article detail page.
 function HeroArticle({ article, sideArticles }: { article: any; sideArticles: any[] }) {
   const { navigate } = useStore()
+  const t = useT()
 
   return (
     <section className="relative bg-black">
@@ -181,7 +184,7 @@ function HeroArticle({ article, sideArticles }: { article: any; sideArticles: an
             <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
               <div className="flex items-center gap-2 mb-2">
                 <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded font-bold">
-                  خبر ویژه
+                  {t('home.featured')}
                 </span>
                 {article.category && (
                   <span
@@ -214,8 +217,8 @@ function HeroArticle({ article, sideArticles }: { article: any; sideArticles: an
           {/* Side featured articles */}
           <div className="hidden lg:flex flex-col gap-3">
             <div className="flex items-center justify-between mb-1">
-              <h3 className="text-sm font-bold text-foreground">اخبار منتخب</h3>
-              <span className="text-[10px] text-muted-foreground">{sideArticles.length} خبر</span>
+              <h3 className="text-sm font-bold text-foreground">{t('home.selected')}</h3>
+              <span className="text-[10px] text-muted-foreground">{sideArticles.length} {t('nav.home')}</span>
             </div>
             {sideArticles.slice(0, 3).map((a) => (
               <ArticleCard key={a.id} article={a} variant="horizontal" />
@@ -224,7 +227,7 @@ function HeroArticle({ article, sideArticles }: { article: any; sideArticles: an
               onClick={() => navigate('magazine')}
               className="mt-auto bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-lg p-3 text-center transition-colors"
             >
-              <span className="text-primary text-sm font-medium">مشاهده همه اخبار ویژه</span>
+              <span className="text-primary text-sm font-medium">{t('home.allFeatured')}</span>
             </button>
           </div>
         </div>

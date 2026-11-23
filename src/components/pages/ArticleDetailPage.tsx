@@ -16,6 +16,8 @@ import {
   MessageCircle,
   Send,
   ExternalLink,
+  Languages,
+  Loader2,
 } from 'lucide-react'
 import { formatPersianNumber, timeAgo, formatPersianDateLong } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -27,11 +29,15 @@ interface Props {
 }
 
 export function ArticleDetailPage({ slug }: Props) {
-  const { navigate, user } = useStore()
+  const { navigate, user, lang } = useStore()
   const [data, setData] = useState<{ article: any; related: any[] } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [comment, setComment] = useState('')
+  // Translation state — whether to display the English version (when available)
+  // and whether a translation request is in flight.
+  const [showEn, setShowEn] = useState(false)
+  const [translating, setTranslating] = useState(false)
   const [comments, setComments] = useState<any[]>([])
   const [submitting, setSubmitting] = useState(false)
 
@@ -39,12 +45,15 @@ export function ArticleDetailPage({ slug }: Props) {
     setLoading(true)
     setError(null)
     setData(null)
+    setShowEn(false)
     fetch(`/api/articles/${slug}`)
       .then(async (r) => {
         const json = await r.json()
         if (!r.ok) throw new Error(json.error || 'خطا')
         setData(json)
         setComments(json.article.comments || [])
+        // If the article already has an English version, follow the current UI language
+        if (json.article.titleEn && lang === 'en') setShowEn(true)
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
@@ -61,6 +70,38 @@ export function ArticleDetailPage({ slug }: Props) {
       }
     } catch {
       // cancelled
+    }
+  }
+
+  // Translate the article to English via the server-side LLM route, then flip
+  // the view to the English version. The translation is cached on the article
+  // row (titleEn/excerptEn/contentEn) so subsequent visits are instant.
+  const handleTranslate = async () => {
+    if (!data?.article) return
+    if (data.article.titleEn) {
+      // already translated — just toggle the view
+      setShowEn((v) => !v)
+      return
+    }
+    setTranslating(true)
+    try {
+      const r = await fetch('/api/admin/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: data.article.id, targetLang: 'en' }),
+      })
+      const json = await r.json()
+      if (!r.ok) throw new Error(json.error || 'خطا')
+      // merge the English fields into the loaded article so we can render them
+      setData((prev) =>
+        prev ? { ...prev, article: { ...prev.article, titleEn: json.titleEn, excerptEn: json.excerptEn, contentEn: json.contentEn } } : prev,
+      )
+      setShowEn(true)
+      toast.success('ترجمه آماده شد')
+    } catch (e: any) {
+      toast.error(e?.message || 'خطا در ترجمه')
+    } finally {
+      setTranslating(false)
     }
   }
 
@@ -142,23 +183,31 @@ export function ArticleDetailPage({ slug }: Props) {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Main content */}
           <article className="lg:col-span-3">
-            {/* Cover image */}
-            <div className="relative aspect-video rounded-xl overflow-hidden bg-secondary mb-4">
-              <img
-                src={article.coverImage}
-                alt={article.title}
-                className="w-full h-full object-cover"
-              />
-              {article.isBreaking && (
-                <span className="absolute top-3 right-3 bg-destructive text-destructive-foreground text-sm px-3 py-1 rounded font-bold">
-                  فوری
-                </span>
-              )}
-            </div>
+            {/* Cover image — only when the article has one.
+                Aggregated news in text-only mode (importImages off) have no
+                cover image; we show nothing instead of a broken img. */}
+            {article.coverImage ? (
+              <div className="relative aspect-video rounded-xl overflow-hidden bg-secondary mb-4">
+                <img
+                  src={article.coverImage}
+                  alt={article.title}
+                  className="w-full h-full object-cover"
+                />
+                {article.isBreaking && (
+                  <span className="absolute top-3 right-3 bg-destructive text-destructive-foreground text-sm px-3 py-1 rounded font-bold">
+                    فوری
+                  </span>
+                )}
+              </div>
+            ) : article.isBreaking ? (
+              <span className="inline-block bg-destructive text-destructive-foreground text-sm px-3 py-1 rounded font-bold mb-3">
+                فوری
+              </span>
+            ) : null}
 
-            {/* Title */}
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-4 text-balance leading-tight">
-              {article.title}
+            {/* Title — show the English version when the visitor switched to it */}
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-4 text-balance leading-tight" dir={showEn ? 'ltr' : 'rtl'}>
+              {showEn && article.titleEn ? article.titleEn : article.title}
             </h1>
 
             {/* Meta */}
@@ -182,21 +231,42 @@ export function ArticleDetailPage({ slug }: Props) {
                 <Eye className="h-4 w-4" />
                 {formatPersianNumber(article.views)} بازدید
               </span>
-              <Button size="sm" variant="outline" onClick={handleShare} className="mr-auto">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleTranslate}
+                disabled={translating || (!user && !article.titleEn)}
+                className="mr-auto"
+                title={article.titleEn ? (showEn ? 'نمایش نسخه فارسی' : 'نمایش نسخه انگلیسی') : 'ترجمه این خبر به انگلیسی'}
+              >
+                {translating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 ml-1 animate-spin" />
+                    ترجمه...
+                  </>
+                ) : (
+                  <>
+                    <Languages className="h-4 w-4 ml-1" />
+                    {article.titleEn ? (showEn ? 'فارسی' : 'English') : 'ترجمه به انگلیسی'}
+                  </>
+                )}
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleShare}>
                 <Share2 className="h-4 w-4 ml-1" />
                 اشتراک‌گذاری
               </Button>
             </div>
 
             {/* Excerpt */}
-            <div className="mt-4 text-base sm:text-lg text-muted-foreground leading-8 font-medium border-r-4 border-primary pr-4 py-2">
-              {article.excerpt}
+            <div className="mt-4 text-base sm:text-lg text-muted-foreground leading-8 font-medium border-r-4 border-primary pr-4 py-2" dir={showEn ? 'ltr' : 'rtl'}>
+              {showEn && article.excerptEn ? article.excerptEn : article.excerpt}
             </div>
 
             {/* Content */}
             <div
               className="article-content mt-6"
-              dangerouslySetInnerHTML={{ __html: article.content }}
+              dir={showEn ? 'ltr' : 'rtl'}
+              dangerouslySetInnerHTML={{ __html: showEn && article.contentEn ? article.contentEn : article.content }}
             />
 
             {/* Source attribution banner (for AI-generated news) */}

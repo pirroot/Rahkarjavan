@@ -5,7 +5,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Providers } from "@/components/Providers";
 
-export const dynamic = "force-dynamic";
 const vazirmatn = Vazirmatn({
   subsets: ["arabic", "latin"],
   variable: "--font-vazirmatn",
@@ -54,7 +53,9 @@ export default function RootLayout({
       <body
         className={`${vazirmatn.variable} antialiased bg-background text-foreground font-vazirmatn`}
       >
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+        </Providers>
         <Toaster />
         <Sonner position="top-center" />
       </body>

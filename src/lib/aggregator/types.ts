@@ -22,6 +22,13 @@ const DEFAULTS = {
   // imported as plain articles (the video URL is ignored). When true, video
   // pages are saved into the Video table via publishVideo.
   importVideos: false,
+  // Image importing — when true (default), the aggregator downloads the
+  // original cover image and in-body images and re-hosts them on our server.
+  // When false, NO image is downloaded: the article is saved as text-only
+  // (coverImage = empty, in-body <img> tags stripped). This is what the
+  // client asked for aggregated news: "تصویرش اصلاً نیاد، فقط متنش بیاد" to
+  // avoid any copyright issue with republishing other agencies' photos.
+  importImages: true,
   // Latest-only mode — when true, the aggregator imports only the newest items
   // from each source per run (respects maxItemsPerRun but skips items older
   // than the source's last successful import). This keeps the front-page
@@ -57,6 +64,7 @@ export async function getAggregatorSettings(): Promise<AggregatorSettings> {
     defaultIntervalMinutes: get('agg_default_interval', DEFAULTS.defaultIntervalMinutes, (v) => parseInt(v, 10)),
     defaultMaxItemsPerRun: get('agg_default_max_items', DEFAULTS.defaultMaxItemsPerRun, (v) => parseInt(v, 10)),
     importVideos: get('agg_import_videos', DEFAULTS.importVideos, (v) => v === '1' || v === 'true'),
+    importImages: get('agg_import_images', DEFAULTS.importImages, (v) => v === '1' || v === 'true'),
     latestOnly: get('agg_latest_only', DEFAULTS.latestOnly, (v) => v === '1' || v === 'true'),
   }
 }
@@ -74,6 +82,7 @@ export async function setAggregatorSettings(patch: Partial<AggregatorSettings>) 
     defaultIntervalMinutes: 'agg_default_interval',
     defaultMaxItemsPerRun: 'agg_default_max_items',
     importVideos: 'agg_import_videos',
+    importImages: 'agg_import_images',
     latestOnly: 'agg_latest_only',
   }
   for (const [k, v] of Object.entries(patch)) {

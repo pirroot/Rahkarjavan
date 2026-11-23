@@ -60,6 +60,7 @@ export const settingsSchema = z.object({
   defaultIntervalMinutes: z.number().int().min(1).max(1440).optional(),
   defaultMaxItemsPerRun: z.number().int().min(1).max(200).optional(),
   importVideos: z.boolean().optional(),
+  importImages: z.boolean().optional(),
   latestOnly: z.boolean().optional(),
 })
 export type SettingsInput = z.infer<typeof settingsSchema>

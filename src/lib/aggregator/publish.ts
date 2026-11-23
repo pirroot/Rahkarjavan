@@ -40,11 +40,13 @@ export interface PublishResult {
 
 /**
  * Decide whether to save as Video or Article and dispatch.
- * Caller has already verified that at least one of (videoUrl, coverImage) is present.
  *
  * Routing:
  *   - article.videoUrl set AND settings.importVideos true → Video
- *   - otherwise (incl. when importVideos is false) → Article (the video URL is dropped)
+ *   - otherwise (incl. when importVideos is false) → Article
+ *
+ * The caller already decided whether a cover image is required (it is NOT
+ * required when settings.importImages is off — text-only mode).
  */
 export async function publishArticle(
   input: PublishInput,
@@ -56,10 +58,7 @@ export async function publishArticle(
   if (article.videoUrl && settings.importVideos && (source.videoCategoryId || source.defaultCategoryId)) {
     return publishVideo(input, settings)
   }
-  // article-only path (requires a cover image)
-  if (!coverImage) {
-    return { ok: false, published: false, error: 'no media (no image and no usable video)' }
-  }
+  // Article path. coverImage may be empty in text-only mode (settings.importImages=false).
   return publishMagazineArticle(input, settings)
 }
 
@@ -82,16 +81,33 @@ async function publishMagazineArticle(
   const slug = await uniqueArticleSlug(article.title)
   const publishedAt = (source.useOriginalDate && article.publishedAt) || new Date()
 
+  // ---- Source attribution formatting ----
+  // The client asked: "اول اون متن نوشته بشه فارس. فارس دو نقطه" — prepend the
+  // source's short name as a byline at the very top of the body. The short
+  // name is the first word of source.name (e.g. "خبرگزاری فارس" → "فارس").
+  // Then keep the body text exactly as-is (copy/paste of the original).
+  // Finally append a "منبع: <name> — <link>" footer.
+  const shortSource = shortSourceName(source.name)
   let contentHtml = article.contentHtml
   if (source.addSourceCredit) {
+    // prepend byline: <p><strong>فارس:</strong> ...body...</p>
+    // We wrap the existing body so the byline is the very first thing the
+    // reader sees.
+    const byline = `<p style="margin-bottom:12px;font-weight:700;color:#dc2626;font-size:1.05em;">${escapeHtml(shortSource)}:</p>`
     const credit = `<p class="source-credit" style="margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:13px;color:#6b7280;">منبع: ${escapeHtml(source.name)} — <a href="${escapeHtml(article.url)}" target="_blank" rel="noopener noreferrer nofollow">${escapeHtml(domainOf(article.url))}</a></p>`
-    contentHtml = contentHtml + credit
+    contentHtml = byline + contentHtml + credit
   }
+
+  // Use the source short name as the excerpt lead when no excerpt was extracted.
+  const rawExcerpt = (article.excerpt || '').slice(0, 500)
+  const excerpt = rawExcerpt || `${shortSource}: ` + cleanText(article.contentHtml || '').slice(0, 180)
 
   const status = source.autoPublish ? 'PUBLISHED' : 'DRAFT'
   const isPublished = source.autoPublish
   const title = (article.title || '').slice(0, 500)
-  const excerpt = (article.excerpt || '').slice(0, 500)
+
+  // coverImage may be empty in text-only mode (settings.importImages=false).
+  const finalCover = coverImage || ''
 
   try {
     const created = await db.article.create({
@@ -100,7 +116,7 @@ async function publishMagazineArticle(
         slug,
         excerpt,
         content: contentHtml,
-        coverImage: coverImage || '',
+        coverImage: finalCover,
         categoryId,
         authorId: null,
         tags: article.category || '',
@@ -115,7 +131,7 @@ async function publishMagazineArticle(
         isAutoImported: true,
         metaTitle: title.slice(0, 60),
         metaDescription: excerpt.slice(0, 160),
-        ogImage: coverImage || null,
+        ogImage: finalCover || null,
       },
     })
     return { ok: true, kind: 'article', articleId: created.id, slug: created.slug, published: isPublished }
@@ -194,6 +210,7 @@ async function publishVideo(
           excerpt: '',
           content: '',
           coverImage: '',
+          tags: '',
           isPublished: false,
           status: 'DRAFT',
           sourceUrl: normalizeUrl(article.url),
@@ -301,6 +318,38 @@ function escapeHtml(s: string): string {
 
 function domainOf(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, '') } catch { return url }
+}
+
+/** Extract a short byline name from a full source name.
+ * Examples:
+ *   "خبرگزاری فارس" → "فارس"
+ *   "خبرگزاری تسنیم" → "تسنیم"
+ *   "ایسنا" → "ایسنا"
+ *   "Fars News Agency" → "Fars"
+ * Falls back to the last whitespace-separated word.
+ */
+function shortSourceName(full: string): string {
+  const trimmed = (full || '').trim()
+  if (!trimmed) return 'منبع'
+  // Persian common prefixes to drop
+  const drop = ['خبرگزاری', 'خبرگزاري', 'نشریه', 'پایگاه', 'سایت', 'website', 'news']
+  const words = trimmed.split(/\s+/).filter(Boolean)
+  const remaining = words.filter((w) => !drop.includes(w.toLowerCase()))
+  if (remaining.length) {
+    // last surviving word is usually the brand ("فارس", "تسنیم")
+    return remaining[remaining.length - 1]
+  }
+  return words[words.length - 1] || trimmed
+}
+
+/** Plain-text strip of HTML tags (for excerpt fallback). */
+function cleanText(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&[a-z]+;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 // keep type re-export for orchestrator

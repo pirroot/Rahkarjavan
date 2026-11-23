@@ -1,18 +1,18 @@
-"use client";
+'use client'
 
-import { useEffect, useState } from "react";
-import { useStore } from "@/lib/store";
-import { useAuth } from "@/hooks/use-auth";
-import { AdminDashboard } from "@/components/admin/AdminDashboard";
-import { AdminArticles } from "@/components/admin/AdminArticles";
-import { AdminCategories } from "@/components/admin/AdminCategories";
-import { AdminUsers } from "@/components/admin/AdminUsers";
-import { AdminComments } from "@/components/admin/AdminComments";
-import { AdminMessages } from "@/components/admin/AdminMessages";
-import { AdminSettings } from "@/components/admin/AdminSettings";
-import { AdminSystem } from "@/components/admin/AdminSystem";
-import { AdminAggregator } from "@/components/admin/AdminAggregator";
-import { AdminLearning } from "@/components/admin/AdminLearning";
+import { useEffect, useState } from 'react'
+import { useStore } from '@/lib/store'
+import { useAuth } from '@/hooks/use-auth'
+import { AdminDashboard } from '@/components/admin/AdminDashboard'
+import { AdminArticles } from '@/components/admin/AdminArticles'
+import { AdminCategories } from '@/components/admin/AdminCategories'
+import { AdminUsers } from '@/components/admin/AdminUsers'
+import { AdminComments } from '@/components/admin/AdminComments'
+import { AdminMessages } from '@/components/admin/AdminMessages'
+import { AdminSettings } from '@/components/admin/AdminSettings'
+import { AdminSystem } from '@/components/admin/AdminSystem'
+import { AdminAggregator } from '@/components/admin/AdminAggregator'
+import { AdminLearning } from '@/components/admin/AdminLearning'
 import {
   LayoutDashboard,
   Newspaper,
@@ -27,49 +27,54 @@ import {
   Server,
   Radar,
   BookOpen,
-} from "lucide-react";
-import { cn, userRoleLabels } from "@/lib/utils";
+} from 'lucide-react'
+import { cn, userRoleLabels } from '@/lib/utils'
 
 type AdminSection =
-  | "dashboard"
-  | "articles"
-  | "aggregator"
-  | "aggregator-rules"
-  | "aggregator-logs"
-  | "aggregator-settings"
-  | "learning"
-  | "categories"
-  | "users"
-  | "comments"
-  | "messages"
-  | "settings"
-  | "system";
+  | 'dashboard'
+  | 'articles'
+  | 'aggregator'
+  | 'aggregator-rules'
+  | 'aggregator-logs'
+  | 'aggregator-settings'
+  | 'learning'
+  | 'categories'
+  | 'users'
+  | 'comments'
+  | 'messages'
+  | 'settings'
+  | 'system'
 
 export function AdminPanelPage() {
-  const { user, navigate, loadingUser } = useStore();
-  const { logout } = useAuth();
-  const [section, setSection] = useState<AdminSection>("dashboard");
-  const [categories, setCategories] = useState<any[]>([]);
+  const { user, navigate, loadingUser, params } = useStore()
+  const { logout } = useAuth()
+  // Allow deep-linking to a specific admin section via the URL hash, e.g.
+  // `/#/admin?section=aggregator`. This lets the learning page link directly
+  // to "افزودن منبع" / "تنظیمات" / etc. instead of just the admin landing.
+  const [section, setSection] = useState<AdminSection>(
+    (params.section as AdminSection) || 'dashboard'
+  )
+  const [categories, setCategories] = useState<any[]>([])
+
+  // When the admin section changes in the URL (e.g. user clicked a deep link
+  // from the learning page), reflect it in the local section state.
+  useEffect(() => {
+    if (params.section) {
+      setSection(params.section as AdminSection)
+    }
+  }, [params.section])
 
   useEffect(() => {
-    fetch("/api/categories")
-      .then((r) => r.json())
-      .then((d) => setCategories(d.categories || []))
-      .catch(() => {});
-  }, []);
+    fetch('/api/categories').then((r) => r.json()).then((d) => setCategories(d.categories || [])).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!loadingUser && !user) {
-      navigate("auth");
-    } else if (
-      !loadingUser &&
-      user &&
-      user.role !== "ADMIN" &&
-      user.role !== "EDITOR"
-    ) {
-      navigate("home");
+      navigate('auth')
+    } else if (!loadingUser && user && user.role !== 'ADMIN' && user.role !== 'EDITOR') {
+      navigate('home')
     }
-  }, [user, loadingUser, navigate]);
+  }, [user, loadingUser, navigate])
 
   if (loadingUser) {
     return (
@@ -79,10 +84,10 @@ export function AdminPanelPage() {
           <div className="h-96 bg-secondary rounded-xl" />
         </div>
       </div>
-    );
+    )
   }
 
-  if (!user || (user.role !== "ADMIN" && user.role !== "EDITOR")) return null;
+  if (!user || (user.role !== 'ADMIN' && user.role !== 'EDITOR')) return null
 
   return (
     <div className="min-h-screen bg-background">
@@ -96,12 +101,8 @@ export function AdminPanelPage() {
                 ر
               </div>
               <div>
-                <div className="font-bold text-sidebar-foreground text-sm">
-                  راهکار جوان
-                </div>
-                <div className="text-[10px] text-muted-foreground">
-                  پنل مدیریت
-                </div>
+                <div className="font-bold text-sidebar-foreground text-sm">راهکار جوان</div>
+                <div className="text-[10px] text-muted-foreground">پنل مدیریت</div>
               </div>
             </div>
           </div>
@@ -109,9 +110,7 @@ export function AdminPanelPage() {
           {/* User greeting */}
           <div className="p-4 border-b border-sidebar-border">
             <p className="text-xs text-muted-foreground mb-1">خسته نباشید،</p>
-            <p className="text-sm font-bold text-sidebar-foreground">
-              {user.displayName || user.name}
-            </p>
+            <p className="text-sm font-bold text-sidebar-foreground">{user.displayName || user.name}</p>
             <div className="mt-2 inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-primary/10 text-primary">
               {userRoleLabels[user.role]}
             </div>
@@ -120,88 +119,88 @@ export function AdminPanelPage() {
           {/* Nav */}
           <nav className="p-2 flex lg:flex-col gap-1 overflow-x-auto no-scrollbar">
             <NavButton
-              active={section === "dashboard"}
-              onClick={() => setSection("dashboard")}
+              active={section === 'dashboard'}
+              onClick={() => setSection('dashboard')}
               icon={<LayoutDashboard className="h-4 w-4" />}
               label="داشبورد"
             />
 
             <GroupLabel label="محتوا" />
             <NavButton
-              active={section === "articles"}
-              onClick={() => setSection("articles")}
+              active={section === 'articles'}
+              onClick={() => setSection('articles')}
               icon={<Newspaper className="h-4 w-4" />}
               label="اخبار و مقالات"
             />
 
             <GroupLabel label="خودکارسازی خبر" />
             <NavButton
-              active={section === "aggregator"}
-              onClick={() => setSection("aggregator")}
+              active={section === 'aggregator'}
+              onClick={() => setSection('aggregator')}
               icon={<Radar className="h-4 w-4" />}
               label="منابع خبر"
             />
             <NavButton
-              active={section === "aggregator-rules"}
-              onClick={() => setSection("aggregator-rules")}
+              active={section === 'aggregator-rules'}
+              onClick={() => setSection('aggregator-rules')}
               icon={<Radar className="h-4 w-4" />}
               label="قوانین پاکسازی"
             />
             <NavButton
-              active={section === "aggregator-logs"}
-              onClick={() => setSection("aggregator-logs")}
+              active={section === 'aggregator-logs'}
+              onClick={() => setSection('aggregator-logs')}
               icon={<Radar className="h-4 w-4" />}
               label="گزارش‌ها"
             />
             <NavButton
-              active={section === "aggregator-settings"}
-              onClick={() => setSection("aggregator-settings")}
+              active={section === 'aggregator-settings'}
+              onClick={() => setSection('aggregator-settings')}
               icon={<Radar className="h-4 w-4" />}
               label="تنظیمات تجمیع"
             />
             <NavButton
-              active={section === "learning"}
-              onClick={() => setSection("learning")}
+              active={section === 'learning'}
+              onClick={() => setSection('learning')}
               icon={<BookOpen className="h-4 w-4" />}
               label="یادگیری"
             />
 
-            {user.role === "ADMIN" && (
+            {user.role === 'ADMIN' && (
               <>
                 <GroupLabel label="مدیریت" />
                 <NavButton
-                  active={section === "categories"}
-                  onClick={() => setSection("categories")}
+                  active={section === 'categories'}
+                  onClick={() => setSection('categories')}
                   icon={<FolderTree className="h-4 w-4" />}
                   label="دسته‌بندی‌ها"
                 />
                 <NavButton
-                  active={section === "comments"}
-                  onClick={() => setSection("comments")}
+                  active={section === 'comments'}
+                  onClick={() => setSection('comments')}
                   icon={<MessageSquare className="h-4 w-4" />}
                   label="نظرات"
                 />
                 <NavButton
-                  active={section === "messages"}
-                  onClick={() => setSection("messages")}
+                  active={section === 'messages'}
+                  onClick={() => setSection('messages')}
                   icon={<Mail className="h-4 w-4" />}
                   label="پیام‌ها"
                 />
                 <NavButton
-                  active={section === "users"}
-                  onClick={() => setSection("users")}
+                  active={section === 'users'}
+                  onClick={() => setSection('users')}
                   icon={<Users className="h-4 w-4" />}
                   label="کاربران"
                 />
                 <NavButton
-                  active={section === "settings"}
-                  onClick={() => setSection("settings")}
+                  active={section === 'settings'}
+                  onClick={() => setSection('settings')}
                   icon={<Settings className="h-4 w-4" />}
                   label="تنظیمات"
                 />
                 <NavButton
-                  active={section === "system"}
-                  onClick={() => setSection("system")}
+                  active={section === 'system'}
+                  onClick={() => setSection('system')}
                   icon={<Server className="h-4 w-4" />}
                   label="وضعیت سیستم"
                 />
@@ -212,14 +211,14 @@ export function AdminPanelPage() {
           {/* Footer actions */}
           <div className="p-2 border-t border-sidebar-border mt-auto hidden lg:block">
             <button
-              onClick={() => navigate("home")}
+              onClick={() => navigate('home')}
               className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-sidebar-foreground hover:bg-sidebar-accent w-full"
             >
               <Home className="h-4 w-4" />
               <span>بازگشت به سایت</span>
             </button>
             <button
-              onClick={() => navigate("profile")}
+              onClick={() => navigate('profile')}
               className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-sidebar-foreground hover:bg-sidebar-accent w-full"
             >
               <User className="h-4 w-4" />
@@ -237,33 +236,23 @@ export function AdminPanelPage() {
 
         {/* Main content */}
         <main className="flex-1 p-4 sm:p-6 min-w-0">
-          {section === "dashboard" && <AdminDashboard />}
-          {section === "articles" && <AdminArticles />}
-          {section === "categories" && user.role === "ADMIN" && (
-            <AdminCategories />
-          )}
-          {section === "users" && user.role === "ADMIN" && <AdminUsers />}
-          {section === "comments" && <AdminComments />}
-          {section === "messages" && user.role === "ADMIN" && <AdminMessages />}
-          {section === "settings" && user.role === "ADMIN" && <AdminSettings />}
-          {section === "system" && user.role === "ADMIN" && <AdminSystem />}
-          {section === "aggregator" && (
-            <AdminAggregator section="sources" categories={categories} />
-          )}
-          {section === "aggregator-rules" && (
-            <AdminAggregator section="rules" categories={categories} />
-          )}
-          {section === "aggregator-logs" && (
-            <AdminAggregator section="logs" categories={categories} />
-          )}
-          {section === "aggregator-settings" && (
-            <AdminAggregator section="settings" categories={categories} />
-          )}
-          {section === "learning" && <AdminLearning />}
+          {section === 'dashboard' && <AdminDashboard />}
+          {section === 'articles' && <AdminArticles />}
+          {section === 'categories' && user.role === 'ADMIN' && <AdminCategories />}
+          {section === 'users' && user.role === 'ADMIN' && <AdminUsers />}
+          {section === 'comments' && <AdminComments />}
+          {section === 'messages' && user.role === 'ADMIN' && <AdminMessages />}
+          {section === 'settings' && user.role === 'ADMIN' && <AdminSettings />}
+          {section === 'system' && user.role === 'ADMIN' && <AdminSystem />}
+          {section === 'aggregator' && <AdminAggregator section="sources" categories={categories} />}
+          {section === 'aggregator-rules' && <AdminAggregator section="rules" categories={categories} />}
+          {section === 'aggregator-logs' && <AdminAggregator section="logs" categories={categories} />}
+          {section === 'aggregator-settings' && <AdminAggregator section="settings" categories={categories} />}
+          {section === 'learning' && <AdminLearning />}
         </main>
       </div>
     </div>
-  );
+  )
 }
 
 function NavButton({
@@ -272,25 +261,25 @@ function NavButton({
   icon,
   label,
 }: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
+  active: boolean
+  onClick: () => void
+  icon: React.ReactNode
+  label: string
 }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors text-right shrink-0",
+        'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors text-right shrink-0',
         active
-          ? "bg-primary text-primary-foreground"
-          : "text-sidebar-foreground hover:bg-sidebar-accent",
+          ? 'bg-primary text-primary-foreground'
+          : 'text-sidebar-foreground hover:bg-sidebar-accent'
       )}
     >
       {icon}
       <span>{label}</span>
     </button>
-  );
+  )
 }
 
 // Section divider/label for the sidebar grouping (always visible)
@@ -299,5 +288,5 @@ function GroupLabel({ label }: { label: string }) {
     <div className="px-3 pt-3 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground shrink-0 lg:w-full">
       {label}
     </div>
-  );
+  )
 }

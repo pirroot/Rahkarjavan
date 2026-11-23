@@ -1,150 +1,130 @@
-"use client";
+'use client'
 
-import { useState, useEffect } from "react";
-import { useStore } from "@/lib/store";
-import { useAuth } from "@/hooks/use-auth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import {
-  Mail,
-  Lock,
-  User,
-  ChevronLeft,
-  Chrome,
-  Github,
-  Sparkles,
-  Send,
-} from "lucide-react";
-import { toast } from "sonner";
-import { signIn } from "next-auth/react";
+import { useState, useEffect } from 'react'
+import { useStore } from '@/lib/store'
+import { useAuth } from '@/hooks/use-auth'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Separator } from '@/components/ui/separator'
+import { Mail, Lock, User, ChevronLeft, Chrome, Github, Sparkles, Send } from 'lucide-react'
+import { toast } from 'sonner'
+import { signIn } from 'next-auth/react'
 
 export function AuthPage() {
-  const { navigate, user } = useStore();
-  const { loadingUser } = useAuth();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const { navigate, user } = useStore()
+  const { loadingUser } = useAuth()
+  const [mode, setMode] = useState<'login' | 'register'>('login')
 
   // Login state
-  const [loginForm, setLoginForm] = useState({ email: "", password: "" });
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' })
   // Register state
-  const [regForm, setRegForm] = useState({ name: "", email: "", password: "" });
+  const [regForm, setRegForm] = useState({ name: '', email: '', password: '' })
   // Magic link
-  const [magicEmail, setMagicEmail] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [magicEmail, setMagicEmail] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   // Available providers
-  const [providers, setProviders] = useState<{
-    magicLinkEnabled: boolean;
-    googleEnabled: boolean;
-    githubEnabled: boolean;
-  }>({
+  const [providers, setProviders] = useState<{ magicLinkEnabled: boolean; googleEnabled: boolean; githubEnabled: boolean }>({
     magicLinkEnabled: false,
     googleEnabled: false,
     githubEnabled: false,
-  });
+  })
 
   useEffect(() => {
-    fetch("/api/auth/providers")
+    fetch('/api/auth/providers')
       .then((r) => r.json())
       .then((d) => setProviders(d))
-      .catch(() => {});
-  }, []);
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!loadingUser && user) {
-      navigate("profile");
+      navigate('profile')
     }
-  }, [user, loadingUser, navigate]);
+  }, [user, loadingUser, navigate])
 
   // Legacy login (still uses our /api/auth/login for backward compat)
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
+    e.preventDefault()
+    setSubmitting(true)
     try {
-      const r = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const r = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(loginForm),
-      });
-      const json = await r.json();
-      if (!r.ok) throw new Error(json.error || "خطا");
-      useStore.getState().setUser(json.user);
-      toast.success("با موفقیت وارد شدید");
-      if (json.user.role === "ADMIN" || json.user.role === "EDITOR") {
-        navigate("admin");
+      })
+      const json = await r.json()
+      if (!r.ok) throw new Error(json.error || 'خطا')
+      useStore.getState().setUser(json.user)
+      toast.success('با موفقیت وارد شدید')
+      if (json.user.role === 'ADMIN' || json.user.role === 'EDITOR') {
+        navigate('admin')
       } else {
-        navigate("profile");
+        navigate('profile')
       }
     } catch (e: any) {
-      toast.error(e.message || "خطا در ورود");
+      toast.error(e.message || 'خطا در ورود')
     } finally {
-      setSubmitting(false);
+      setSubmitting(false)
     }
-  };
+  }
 
   const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
+    e.preventDefault()
+    setSubmitting(true)
     try {
-      const r = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const r = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(regForm),
-      });
-      const json = await r.json();
-      if (!r.ok) throw new Error(json.error || "خطا");
-      useStore.getState().setUser(json.user);
-      toast.success("ثبت‌نام با موفقیت انجام شد");
-      navigate("profile");
+      })
+      const json = await r.json()
+      if (!r.ok) throw new Error(json.error || 'خطا')
+      useStore.getState().setUser(json.user)
+      toast.success('ثبت‌نام با موفقیت انجام شد')
+      navigate('profile')
     } catch (e: any) {
-      toast.error(e.message || "خطا در ثبت‌نام");
+      toast.error(e.message || 'خطا در ثبت‌نام')
     } finally {
-      setSubmitting(false);
+      setSubmitting(false)
     }
-  };
+  }
 
   // OAuth via NextAuth
-  const handleOAuth = (provider: "google" | "github") => {
-    signIn(provider, { callbackUrl: "/#/profile" });
-  };
+  const handleOAuth = (provider: 'google' | 'github') => {
+    signIn(provider, { callbackUrl: '/#/profile' })
+  }
 
   // Magic Link via NextAuth email provider
   const handleMagicLink = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
+    e.preventDefault()
+    setSubmitting(true)
     try {
-      const result = await signIn("resend", {
+      const result = await signIn('resend', {
         email: magicEmail,
-        callbackUrl: "/#/profile",
+        callbackUrl: '/#/profile',
         redirect: false,
-      });
+      })
       if (result?.error) {
-        toast.error("خطا در ارسال لینک جادویی");
+        toast.error('خطا در ارسال لینک جادویی')
       } else {
-        toast.success(
-          "لینک جادویی به ایمیل شما ارسال شد. صندوق ایمیل خود را بررسی کنید.",
-        );
-        setMagicEmail("");
+        toast.success('لینک جادویی به ایمیل شما ارسال شد. صندوق ایمیل خود را بررسی کنید.')
+        setMagicEmail('')
       }
     } catch (e: any) {
-      toast.error("خطا در ارسال لینک");
+      toast.error('خطا در ارسال لینک')
     } finally {
-      setSubmitting(false);
+      setSubmitting(false)
     }
-  };
+  }
 
   return (
     <div className="animate-fade-in">
       <div className="container mx-auto px-4 py-6">
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-          <button
-            onClick={() => navigate("home")}
-            className="hover:text-primary"
-          >
-            راهکار جوان
-          </button>
+          <button onClick={() => navigate('home')} className="hover:text-primary">راهکار جوان</button>
           <ChevronLeft className="h-4 w-4" />
           <span className="text-foreground">حساب کاربری</span>
         </div>
@@ -154,12 +134,8 @@ export function AuthPage() {
             <div className="w-16 h-16 rounded-2xl brand-gradient flex items-center justify-center text-primary-foreground font-bold text-3xl mx-auto mb-3">
               ر
             </div>
-            <h1 className="text-2xl font-bold text-foreground">
-              به راهکار جوان بپیوندید
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              وارد حساب خود شوید یا حساب جدید بسازید
-            </p>
+            <h1 className="text-2xl font-bold text-foreground">به راهکار جوان بپیوندید</h1>
+            <p className="text-sm text-muted-foreground mt-1">وارد حساب خود شوید یا حساب جدید بسازید</p>
           </div>
 
           <div className="bg-card border border-border rounded-2xl p-6">
@@ -180,9 +156,7 @@ export function AuthPage() {
                         type="email"
                         placeholder="email@example.com"
                         value={loginForm.email}
-                        onChange={(e) =>
-                          setLoginForm({ ...loginForm, email: e.target.value })
-                        }
+                        onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
                         className="pr-9"
                         dir="ltr"
                         required
@@ -199,12 +173,7 @@ export function AuthPage() {
                         type="password"
                         placeholder="••••••••"
                         value={loginForm.password}
-                        onChange={(e) =>
-                          setLoginForm({
-                            ...loginForm,
-                            password: e.target.value,
-                          })
-                        }
+                        onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
                         className="pr-9"
                         dir="ltr"
                         required
@@ -212,12 +181,8 @@ export function AuthPage() {
                     </div>
                   </div>
 
-                  <Button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full"
-                  >
-                    {submitting ? "در حال ورود..." : "ورود"}
+                  <Button type="submit" disabled={submitting} className="w-full">
+                    {submitting ? 'در حال ورود...' : 'ورود'}
                   </Button>
                 </form>
               </TabsContent>
@@ -233,9 +198,7 @@ export function AuthPage() {
                         type="text"
                         placeholder="نام شما"
                         value={regForm.name}
-                        onChange={(e) =>
-                          setRegForm({ ...regForm, name: e.target.value })
-                        }
+                        onChange={(e) => setRegForm({ ...regForm, name: e.target.value })}
                         className="pr-9"
                         required
                       />
@@ -251,9 +214,7 @@ export function AuthPage() {
                         type="email"
                         placeholder="email@example.com"
                         value={regForm.email}
-                        onChange={(e) =>
-                          setRegForm({ ...regForm, email: e.target.value })
-                        }
+                        onChange={(e) => setRegForm({ ...regForm, email: e.target.value })}
                         className="pr-9"
                         dir="ltr"
                         required
@@ -270,9 +231,7 @@ export function AuthPage() {
                         type="password"
                         placeholder="حداقل ۶ کاراکتر"
                         value={regForm.password}
-                        onChange={(e) =>
-                          setRegForm({ ...regForm, password: e.target.value })
-                        }
+                        onChange={(e) => setRegForm({ ...regForm, password: e.target.value })}
                         className="pr-9"
                         dir="ltr"
                         required
@@ -281,12 +240,8 @@ export function AuthPage() {
                     </div>
                   </div>
 
-                  <Button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full"
-                  >
-                    {submitting ? "در حال ثبت‌نام..." : "ثبت‌نام"}
+                  <Button type="submit" disabled={submitting} className="w-full">
+                    {submitting ? 'در حال ثبت‌نام...' : 'ثبت‌نام'}
                   </Button>
                 </form>
               </TabsContent>
@@ -303,21 +258,13 @@ export function AuthPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {providers.googleEnabled && (
-                    <Button
-                      variant="outline"
-                      onClick={() => handleOAuth("google")}
-                      disabled={submitting}
-                    >
+                    <Button variant="outline" onClick={() => handleOAuth('google')} disabled={submitting}>
                       <Chrome className="h-4 w-4 ml-1" />
                       Google
                     </Button>
                   )}
                   {providers.githubEnabled && (
-                    <Button
-                      variant="outline"
-                      onClick={() => handleOAuth("github")}
-                      disabled={submitting}
-                    >
+                    <Button variant="outline" onClick={() => handleOAuth('github')} disabled={submitting}>
                       <Github className="h-4 w-4 ml-1" />
                       GitHub
                     </Button>
@@ -352,18 +299,12 @@ export function AuthPage() {
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      لینک ورود به ایمیل شما ارسال می‌شود. روی آن کلیک کنید تا
-                      وارد شوید.
+                      لینک ورود به ایمیل شما ارسال می‌شود. روی آن کلیک کنید تا وارد شوید.
                     </p>
                   </div>
-                  <Button
-                    type="submit"
-                    variant="secondary"
-                    disabled={submitting}
-                    className="w-full"
-                  >
+                  <Button type="submit" variant="secondary" disabled={submitting} className="w-full">
                     {submitting ? (
-                      "در حال ارسال..."
+                      'در حال ارسال...'
                     ) : (
                       <>
                         <Send className="h-4 w-4 ml-1" />
@@ -374,9 +315,18 @@ export function AuthPage() {
                 </form>
               </>
             )}
+
+            {/* Hint about NextAuth availability */}
+            {!providers.googleEnabled && !providers.githubEnabled && !providers.magicLinkEnabled && (
+              <div className="mt-4 text-center text-xs text-muted-foreground/70">
+                برای فعال‌سازی ورود با Google/GitHub و Magic Link،
+                <br />
+                متغیرهای محیطی مربوطه را تنظیم کنید.
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }
