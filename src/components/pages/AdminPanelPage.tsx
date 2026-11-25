@@ -13,6 +13,10 @@ import { AdminSettings } from '@/components/admin/AdminSettings'
 import { AdminSystem } from '@/components/admin/AdminSystem'
 import { AdminAggregator } from '@/components/admin/AdminAggregator'
 import { AdminLearning } from '@/components/admin/AdminLearning'
+import { AdminVideos } from '@/components/admin/AdminVideos'
+import { AdminNewsletter } from '@/components/admin/AdminNewsletter'
+import { AdminSeo } from '@/components/admin/AdminSeo'
+import { AdminPages } from '@/components/admin/AdminPages'
 import {
   LayoutDashboard,
   Newspaper,
@@ -27,12 +31,17 @@ import {
   Server,
   Radar,
   BookOpen,
+  Video,
+  Search as SearchIcon,
+  Search,
+  Globe,
 } from 'lucide-react'
 import { cn, userRoleLabels } from '@/lib/utils'
 
 type AdminSection =
   | 'dashboard'
   | 'articles'
+  | 'videos'
   | 'aggregator'
   | 'aggregator-rules'
   | 'aggregator-logs'
@@ -42,7 +51,10 @@ type AdminSection =
   | 'users'
   | 'comments'
   | 'messages'
+  | 'newsletter'
   | 'settings'
+  | 'seo'
+  | 'pages'
   | 'system'
 
 export function AdminPanelPage() {
@@ -132,6 +144,12 @@ export function AdminPanelPage() {
               icon={<Newspaper className="h-4 w-4" />}
               label="اخبار و مقالات"
             />
+            <NavButton
+              active={section === 'videos'}
+              onClick={() => setSection('videos')}
+              icon={<Video className="h-4 w-4" />}
+              label="ویدیوها"
+            />
 
             <GroupLabel label="خودکارسازی خبر" />
             <NavButton
@@ -187,10 +205,28 @@ export function AdminPanelPage() {
                   label="پیام‌ها"
                 />
                 <NavButton
+                  active={section === 'newsletter'}
+                  onClick={() => setSection('newsletter')}
+                  icon={<Mail className="h-4 w-4" />}
+                  label="خبرنامه"
+                />
+                <NavButton
                   active={section === 'users'}
                   onClick={() => setSection('users')}
                   icon={<Users className="h-4 w-4" />}
                   label="کاربران"
+                />
+                <NavButton
+                  active={section === 'pages'}
+                  onClick={() => setSection('pages')}
+                  icon={<BookOpen className="h-4 w-4" />}
+                  label="صفحات (درباره/تماس)"
+                />
+                <NavButton
+                  active={section === 'seo'}
+                  onClick={() => setSection('seo')}
+                  icon={<Search className="h-4 w-4" />}
+                  label="سئو"
                 />
                 <NavButton
                   active={section === 'settings'}
@@ -238,10 +274,14 @@ export function AdminPanelPage() {
         <main className="flex-1 p-4 sm:p-6 min-w-0">
           {section === 'dashboard' && <AdminDashboard />}
           {section === 'articles' && <AdminArticles />}
+          {section === 'videos' && <AdminVideos />}
           {section === 'categories' && user.role === 'ADMIN' && <AdminCategories />}
           {section === 'users' && user.role === 'ADMIN' && <AdminUsers />}
           {section === 'comments' && <AdminComments />}
           {section === 'messages' && user.role === 'ADMIN' && <AdminMessages />}
+          {section === 'newsletter' && user.role === 'ADMIN' && <AdminNewsletter />}
+          {section === 'pages' && user.role === 'ADMIN' && <AdminPages />}
+          {section === 'seo' && user.role === 'ADMIN' && <AdminSeo />}
           {section === 'settings' && user.role === 'ADMIN' && <AdminSettings />}
           {section === 'system' && user.role === 'ADMIN' && <AdminSystem />}
           {section === 'aggregator' && <AdminAggregator section="sources" categories={categories} />}

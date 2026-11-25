@@ -30,11 +30,23 @@ import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 import { useT } from '@/lib/i18n'
 
 export function Header() {
-  const { navigate, page, hamburgerOpen, setHamburgerOpen, searchOpen, setSearchOpen, user, lang } = useStore()
+  const { navigate, page, params, hamburgerOpen, setHamburgerOpen, searchOpen, setSearchOpen, user, lang } = useStore()
   const { logout } = useAuth()
   const settings = useSettings()
   const t = useT()
   const [searchQuery, setSearchQuery] = useState('')
+  // Top-nav category list. We fetch once on mount; categories change rarely.
+  const [navCategories, setNavCategories] = useState<any[]>([])
+  useEffect(() => {
+    fetch('/api/categories')
+      .then((r) => r.json())
+      .then((d) => {
+        // Show up to 6 article/video categories in the top bar; rest are
+        // accessible from the magazine page.
+        setNavCategories((d.categories || []).slice(0, 6))
+      })
+      .catch(() => {})
+  }, [])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -183,9 +195,77 @@ export function Header() {
         )}
       </div>
 
+      {/* Section navigation bar — separates the two main site sections:
+          رسانه تصویری (home) | مجله خبری (magazine) | دسته‌بندی‌ها | درباره/تماس.
+          Visible only on md+ screens (mobile users use the hamburger menu). */}
+      <nav className="hidden md:block border-t border-border bg-background/95">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center gap-1 h-10 overflow-x-auto no-scrollbar">
+            <SectionLink
+              label={t('nav.home')}
+              active={page === 'home'}
+              onClick={() => navigate('home')}
+            />
+            <SectionLink
+              label={t('nav.magazine')}
+              active={page === 'magazine'}
+              onClick={() => navigate('magazine')}
+            />
+            <div className="w-px h-4 bg-border mx-1 shrink-0" />
+            {navCategories.map((cat) => (
+              <SectionLink
+                key={cat.id}
+                label={cat.name}
+                dotColor={cat.color}
+                active={page === 'category' && params.slug === cat.slug}
+                onClick={() => navigate('category', { slug: cat.slug })}
+              />
+            ))}
+            <div className="w-px h-4 bg-border mx-1 shrink-0" />
+            <SectionLink
+              label={t('nav.about')}
+              active={page === 'about'}
+              onClick={() => navigate('about')}
+            />
+            <SectionLink
+              label={t('nav.contact')}
+              active={page === 'contact'}
+              onClick={() => navigate('contact')}
+            />
+          </div>
+        </div>
+      </nav>
+
       {/* Breaking news ticker — placed BELOW the header bar (آخرین خبرها) */}
       <BreakingNewsTicker />
     </header>
+  )
+}
+
+function SectionLink({
+  label,
+  active,
+  onClick,
+  dotColor,
+}: {
+  label: string
+  active: boolean
+  onClick: () => void
+  dotColor?: string
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'shrink-0 px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5',
+        active
+          ? 'text-primary font-semibold'
+          : 'text-foreground/80 hover:text-primary hover:bg-secondary/60'
+      )}
+    >
+      {dotColor && <span style={{ color: dotColor }} className="text-[10px]">●</span>}
+      {label}
+    </button>
   )
 }
 

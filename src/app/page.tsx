@@ -7,12 +7,12 @@ import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { VisualMediaHome } from '@/components/pages/VisualMediaHome'
 import { VideoHome } from '@/components/pages/VideoHome'
+import { MixedHome } from '@/components/pages/MixedHome'
 import { MagazineHome } from '@/components/pages/MagazineHome'
 import { VideoDetailPage } from '@/components/pages/VideoDetailPage'
 import { ArticleDetailPage } from '@/components/pages/ArticleDetailPage'
 import { CategoryPage } from '@/components/pages/CategoryPage'
-import { AboutPage } from '@/components/pages/AboutPage'
-import { ContactPage } from '@/components/pages/ContactPage'
+import { AboutContactPage } from '@/components/pages/AboutContactPage'
 import { SearchPage } from '@/components/pages/SearchPage'
 import { AuthPage } from '@/components/pages/AuthPage'
 import { UserPanelPage } from '@/components/pages/UserPanelPage'
@@ -23,10 +23,14 @@ export default function Home() {
   const { page, params, navigate, theme, setTheme, settings, setLang } = useStore()
   useAuth() // Initialize auth session
 
-  // The admin chooses what the homepage shows: "article" (default) or "video".
-  // When "video", the homepage renders VideoHome (a video feed) instead of the
-  // article-based VisualMediaHome.
-  const homeMode = settings.home_content_type === 'video' ? 'video' : 'article'
+  // The admin chooses what the homepage shows via the SiteSetting
+  // `home_content_type`. Supported values:
+  //   - "article" (default) → VisualMediaHome (article-only editorial layout)
+  //   - "video"             → VideoHome (video-only media layout)
+  //   - "mixed"             → MixedHome (combined articles + videos editorial)
+  const raw = (settings.home_content_type || 'article').toLowerCase()
+  const homeMode: 'article' | 'video' | 'mixed' =
+    raw === 'video' ? 'video' : raw === 'mixed' ? 'mixed' : 'article'
 
   // On mount, parse URL hash to determine initial page
   useEffect(() => {
@@ -67,13 +71,17 @@ export default function Home() {
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
       <main className="flex-1">
-        {page === 'home' && (homeMode === 'video' ? <VideoHome /> : <VisualMediaHome />)}
+        {page === 'home' && (
+          homeMode === 'video' ? <VideoHome /> :
+          homeMode === 'mixed' ? <MixedHome /> :
+          <VisualMediaHome />
+        )}
         {page === 'magazine' && <MagazineHome />}
         {page === 'video' && <VideoDetailPage slug={params.slug} />}
         {page === 'article' && <ArticleDetailPage slug={params.slug} />}
         {page === 'category' && <CategoryPage slug={params.slug} />}
-        {page === 'about' && <AboutPage />}
-        {page === 'contact' && <ContactPage />}
+        {page === 'about' && <AboutContactPage focus="about" />}
+        {page === 'contact' && <AboutContactPage focus="contact" />}
         {page === 'search' && <SearchPage initialQuery={params.q} />}
         {page === 'auth' && <AuthPage />}
         {page === 'profile' && <UserPanelPage />}

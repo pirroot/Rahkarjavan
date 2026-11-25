@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useStore } from '@/lib/store'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,8 @@ import {
   LogOut,
   ChevronLeft,
   Save,
+  ImageIcon,
+  Check,
 } from 'lucide-react'
 import { formatPersianDateLong, formatPersianNumber, userRoleLabels } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -34,15 +36,28 @@ export function UserPanelPage() {
     bio: '',
     avatar: '',
   })
+  const [avatars, setAvatars] = useState<string[]>([])
   const [comments, setComments] = useState<any[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [loadingComments, setLoadingComments] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [avatarError, setAvatarError] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!loadingUser && !user) {
       navigate('auth')
     }
   }, [user, loadingUser, navigate])
+
+  // Load the predefined avatar gallery (paths from /avatars/manifest.json).
+  // Users cannot upload a custom picture — they must pick one of these.
+  useEffect(() => {
+    fetch('/api/profile?avatars=1')
+      .then((r) => r.json())
+      .then((d) => setAvatars(d.avatars || []))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (user) {
@@ -83,6 +98,42 @@ export function UserPanelPage() {
       toast.error(e.message || 'خطا در ذخیره')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  /** Upload a custom avatar image. Must be ≤ 500 KB. */
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow re-selecting the same file
+    if (!file) return
+    setAvatarError('')
+    if (file.size > 500 * 1024) {
+      setAvatarError(`حجم تصویر باید کمتر از ۵۰۰ کیلوبایت باشد (حجم فعلی: ${(file.size / 1024).toFixed(0)} کیلوبایت).`)
+      toast.error('حجم تصویر زیاد است')
+      return
+    }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setAvatarError('فقط فرمت‌های JPG، PNG و WebP مجاز هستند.')
+      toast.error('فرمت تصویر مجاز نیست')
+      return
+    }
+    setUploadingAvatar(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const r = await fetch('/api/profile', { method: 'POST', body: fd })
+      const json = await r.json()
+      if (!r.ok) throw new Error(json.error || 'خطا در آپلود')
+      setForm({ ...form, avatar: json.url })
+      useStore.setState({
+        user: { ...useStore.getState().user!, avatar: json.url },
+      })
+      toast.success('تصویر پروفایل به‌روزرسانی شد')
+    } catch (err: any) {
+      setAvatarError(err.message || 'خطا در آپلود')
+      toast.error(err.message || 'خطا در آپلود')
+    } finally {
+      setUploadingAvatar(false)
     }
   }
 
@@ -168,22 +219,90 @@ export function UserPanelPage() {
                   </CardHeader>
                   <CardContent>
                     <form onSubmit={handleSave} className="space-y-4">
+                      {/* Avatar — predefined gallery + custom upload (≤ 500 KB) */}
                       <div className="space-y-2">
-                        <Label htmlFor="avatar">آدرس تصویر آواتار</Label>
-                        <Input
-                          id="avatar"
-                          type="url"
-                          placeholder="https://..."
-                          value={form.avatar}
-                          onChange={(e) => setForm({ ...form, avatar: e.target.value })}
-                          dir="ltr"
-                        />
-                        {form.avatar && (
-                          <Avatar className="w-16 h-16 mt-2">
-                            <AvatarImage src={form.avatar} />
-                            <AvatarFallback>پ</AvatarFallback>
+                        <Label className="flex items-center gap-1.5"><ImageIcon className="h-4 w-4" />انتخاب آواتار</Label>
+                        <p className="text-xs text-muted-foreground leading-5">
+                          یکی از آواتارهای پیش‌فرض را انتخاب کنید یا تصویر شخصی خود را آپلود کنید (حداکثر ۵۰۰ کیلوبایت).
+                        </p>
+                        {/* Current avatar preview + upload button */}
+                        <div className="flex items-center gap-3 mt-2">
+                          <Avatar className="w-16 h-16 border-2 border-border">
+                            <AvatarImage src={form.avatar || undefined} />
+                            <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+                              {(form.displayName || form.name || 'U').charAt(0)}
+                            </AvatarFallback>
                           </Avatar>
+                          <div className="space-y-2">
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp"
+                              ref={fileInputRef}
+                              onChange={handleAvatarUpload}
+                              className="hidden"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={uploadingAvatar}
+                              onClick={() => fileInputRef.current?.click()}
+                            >
+                              {uploadingAvatar ? (
+                                <>
+                                  <span className="ml-2 inline-block h-3 w-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                  در حال آپلود...
+                                </>
+                              ) : (
+                                <>
+                                  <ImageIcon className="h-4 w-4 ml-1" />
+                                  آپلود تصویر شخصی
+                                </>
+                              )}
+                            </Button>
+                            {form.avatar && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive text-xs h-7 block"
+                                onClick={() => setForm({ ...form, avatar: '' })}
+                              >
+                                حذف آواتار فعلی
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        {avatarError && (
+                          <p className="text-xs text-destructive">{avatarError}</p>
                         )}
+                        {/* Predefined gallery */}
+                        <p className="text-xs text-muted-foreground mt-3">یا از گالری انتخاب کنید:</p>
+                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 mt-1">
+                          {avatars.map((av) => {
+                            const selected = form.avatar === av
+                            return (
+                              <button
+                                key={av}
+                                type="button"
+                                onClick={() => setForm({ ...form, avatar: av })}
+                                className={`relative rounded-lg overflow-hidden border-2 transition-all aspect-square ${
+                                  selected
+                                    ? 'border-primary ring-2 ring-primary/30 scale-105'
+                                    : 'border-border hover:border-primary/40'
+                                }`}
+                                title="انتخاب این آواتار"
+                              >
+                                <img src={av} alt="avatar" className="w-full h-full object-cover" />
+                                {selected && (
+                                  <span className="absolute bottom-1 left-1 bg-primary text-primary-foreground rounded-full p-0.5">
+                                    <Check className="h-3 w-3" />
+                                  </span>
+                                )}
+                              </button>
+                            )
+                          })}
+                        </div>
                       </div>
 
                       <div className="space-y-2">

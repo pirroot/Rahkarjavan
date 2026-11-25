@@ -98,9 +98,10 @@ export function AdminSettings() {
         <CardContent className="space-y-3">
           <p className="text-xs text-muted-foreground leading-6">
             انتخاب کنید صفحه‌ی اول سایت (رسانه تصویری) چه نوع محتوایی نمایش دهد. با تغییر این
-            گزینه و ذخیره، صفحه‌ی اصلی بلافاصله تغییر می‌کند.
+            گزینه و ذخیره، صفحه‌ی اصلی بلافاصله تغییر می‌کند. گزینه «ترکیبی» یک چیدمان حرفه‌ای
+            با هم‌زیستی اخبار و ویدیوها می‌سازد.
           </p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button
               type="button"
               onClick={() => update('home_content_type', 'article')}
@@ -114,7 +115,7 @@ export function AdminSettings() {
               <div>
                 <p className="font-medium text-foreground">خبر (مقاله)</p>
                 <p className="text-xs text-muted-foreground mt-1 leading-5">
-                  صفحه‌ی اصلی اخبار متنی را نشان می‌دهد (پیش‌فرض).
+                  صفحه‌ی اصلی فقط اخبار متنی را نشان می‌دهد (پیش‌فرض).
                 </p>
               </div>
             </button>
@@ -131,7 +132,24 @@ export function AdminSettings() {
               <div>
                 <p className="font-medium text-foreground">ویدیو</p>
                 <p className="text-xs text-muted-foreground mt-1 leading-5">
-                  صفحه‌ی اصلی ویدیوهای منتشرشده را نشان می‌دهد.
+                  صفحه‌ی اصلی فقط ویدیوهای منتشرشده را نشان می‌دهد.
+                </p>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => update('home_content_type', 'mixed')}
+              className={`flex items-start gap-3 rounded-lg border p-4 text-right transition-colors ${
+                settings.home_content_type === 'mixed'
+                  ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                  : 'border-border hover:border-primary/40'
+              }`}
+            >
+              <LayoutDashboard className="h-6 w-6 text-primary shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-foreground">ترکیبی (اخبار + ویدیو)</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-5">
+                  چیدمان حرفه‌ای با هم‌زیستی اخبار و ویدیوها.
                 </p>
               </div>
             </button>

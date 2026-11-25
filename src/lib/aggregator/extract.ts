@@ -30,14 +30,19 @@ export async function extractArticle(
   const $ = cheerio.load(res.html)
 
   // ---- Video (embedded) ----
-  // We must extract video BEFORE stripping <iframe> and <meta> below, because
-  // YouTube/Aparat/Vimeo embeds live in <iframe> and og:video lives in <meta>.
-  const videoInfo = extractVideo($, res.finalUrl)
-  const videoUrl = videoInfo?.url
-  const videoHost = videoInfo?.host
+  // DISABLED: aggregator never saves videos (settings.importVideos=false,
+  // locked in DB). The client uploads videos manually. Skipping the video
+  // scan saves a meaningful chunk of CPU/RAM on a 2GB VPS for every page.
+  const videoUrl: string | undefined = undefined
+  const videoHost: string | undefined = undefined
 
-  // strip script/style/etc up-front (now safe — we've already captured the video)
-  $('script,style,noscript,iframe,form,button,svg,link,meta').remove()
+  // strip script/style/etc up-front. NOTE: we do NOT remove <meta> here,
+  // because SPA news sites (farsnews.ir, irna.ir, ...) server-render only
+  // the <meta property="og:title"> and <meta property="og:description"> tags
+  // — the article body itself is loaded client-side by JS. We rely on these
+  // meta tags below for the title and the lead paragraph. Removing <meta>
+  // here made every SPA source return null.
+  $('script,style,noscript,iframe,form,button,svg,link').remove()
 
   // ---- Title ----
   let title = ''
@@ -80,6 +85,7 @@ export async function extractArticle(
       rawText = cleanText(article.textContent || '')
     }
   }
+  let usedOgFallback = false
   if (!rawText || rawText.length < settings.minContentLength) {
     // Fall back to og:description (the long description meta tag). This is
     // how SPA news sites like farsnews.ir expose the article body — they
@@ -94,6 +100,7 @@ export async function extractArticle(
     if (ogDesc && ogDesc.length >= 80) {
       bodyHtml = `<p>${escapeHtml(ogDesc)}</p>`
       rawText = ogDesc
+      usedOgFallback = true
     }
   }
   if (!rawText || rawText.length < 80) {
@@ -168,6 +175,7 @@ export async function extractArticle(
     publishedAt,
     category,
     author,
+    isOgFallback: usedOgFallback,
   }
 }
 

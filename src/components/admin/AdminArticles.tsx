@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,8 +12,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { FileUpload } from '@/components/admin/FileUpload'
-import { Plus, Pencil, Trash2, Star, Eye, Newspaper, AlertCircle, Sparkles, ExternalLink } from 'lucide-react'
+import { RichTextEditor } from '@/components/admin/RichTextEditor'
+import { Plus, Pencil, Trash2, Star, Eye, Newspaper, AlertCircle, Sparkles, ExternalLink, Search, Search as SearchIcon, Calendar, Eye as PreviewEye, Clock } from 'lucide-react'
 import { formatPersianNumber, articleStatusLabels, timeAgo } from '@/lib/utils'
+import { markdownToHtml, htmlToMarkdown, calculateReadingTime, generateMetaDescription, generateSlug } from '@/lib/markdown'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -26,6 +28,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs'
 
 export function AdminArticles() {
   const [articles, setArticles] = useState<any[]>([])
@@ -106,16 +114,18 @@ export function AdminArticles() {
               افزودن خبر
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editing ? 'ویرایش مطلب' : 'افزودن مطلب جدید'}</DialogTitle>
+          <DialogContent className="max-w-7xl w-[95vw] max-h-[95vh] overflow-y-auto p-6 sm:p-8">
+            <DialogHeader className="pb-4 border-b border-border sticky top-0 bg-background z-10">
+              <DialogTitle className="text-xl">{editing ? 'ویرایش مطلب' : 'افزودن مطلب جدید'}</DialogTitle>
             </DialogHeader>
-            <ArticleForm
-              initial={editing}
-              categories={categories}
-              onSave={handleSave}
-              onCancel={() => { setOpen(false); setEditing(null) }}
-            />
+            <div className="pt-4">
+              <ArticleForm
+                initial={editing}
+                categories={categories}
+                onSave={handleSave}
+                onCancel={() => { setOpen(false); setEditing(null) }}
+              />
+            </div>
           </DialogContent>
         </Dialog>
       </div>
@@ -241,12 +251,16 @@ function ArticleForm({ initial, categories, onSave, onCancel }: {
   onSave: (data: any) => void
   onCancel: () => void
 }) {
+  // The editor stores content as Markdown (RichTextEditor is MDX-based). We
+  // convert HTML ↔ Markdown so existing articles (stored as HTML) open in the
+  // editor cleanly, and on save we convert Markdown → HTML for storage.
   const [form, setForm] = useState({
     title: initial?.title || '',
     titleEn: initial?.titleEn || '',
     slug: initial?.slug || '',
     excerpt: initial?.excerpt || '',
-    content: initial?.content || '',
+    // Edit-time content is markdown. Convert from HTML on load.
+    contentMd: initial?.content ? htmlToMarkdown(initial.content) : '',
     coverImage: initial?.coverImage || '',
     categoryId: initial?.categoryId || '',
     tags: initial?.tags || '',
@@ -254,7 +268,25 @@ function ArticleForm({ initial, categories, onSave, onCancel }: {
     isPublished: initial?.isPublished ?? true,
     isBreaking: initial?.isBreaking ?? false,
     status: initial?.status || 'PUBLISHED',
+    publishedAt: initial?.publishedAt
+      ? new Date(initial.publishedAt).toISOString().slice(0, 16)
+      : '',
+    // SEO fields
+    metaTitle: initial?.metaTitle || '',
+    metaDescription: initial?.metaDescription || '',
+    ogImage: initial?.ogImage || '',
   })
+  const [tab, setTab] = useState<'content' | 'seo' | 'preview'>('content')
+
+  // Auto-fill meta fields when content/title changes (only when empty).
+  const readingTime = useMemo(
+    () => calculateReadingTime(markdownToHtml(form.contentMd)),
+    [form.contentMd]
+  )
+  const autoMetaDescription = useMemo(
+    () => form.metaDescription || form.excerpt || generateMetaDescription(markdownToHtml(form.contentMd)),
+    [form.contentMd, form.excerpt, form.metaDescription]
+  )
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -266,86 +298,140 @@ function ArticleForm({ initial, categories, onSave, onCancel }: {
       toast.error('خلاصه الزامی است')
       return
     }
-    if (!form.content.trim()) {
+    if (!form.contentMd.trim()) {
       toast.error('محتوا الزامی است')
       return
     }
-    onSave(form)
-  }
-
-  const insertTag = (tag: string, wrap: string = '') => {
-    const textarea = document.getElementById('content-textarea') as HTMLTextAreaElement
-    if (!textarea) return
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    const selected = form.content.substring(start, end)
-    let insert: string
-    if (wrap) {
-      insert = `<${wrap}>${selected || tag}</${wrap}>`
-    } else {
-      insert = tag
+    if (form.status === 'SCHEDULED' && !form.publishedAt) {
+      toast.error('برای انتشار زمان‌بندی‌شده، تاریخ انتشار را وارد کنید')
+      return
     }
-    const newContent = form.content.substring(0, start) + insert + form.content.substring(end)
-    setForm({ ...form, content: newContent })
-    setTimeout(() => {
-      textarea.focus()
-      textarea.setSelectionRange(start + insert.length, start + insert.length)
-    }, 0)
+    // Convert markdown → HTML for storage. The backend already does this on
+    // create/update, but we send HTML so the value round-trips cleanly when
+    // the admin reopens the article.
+    const html = markdownToHtml(form.contentMd)
+    onSave({
+      ...form,
+      content: html,
+      slug: form.slug || generateSlug(form.title),
+      metaTitle: form.metaTitle || form.title.slice(0, 60),
+      metaDescription: autoMetaDescription,
+      ogImage: form.ogImage || form.coverImage,
+      readingTime,
+    })
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1.5">
+      {/* Top row: title + slug */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="space-y-1.5 sm:col-span-2">
           <Label>عنوان *</Label>
-          <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+          <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required placeholder="عنوان خبر..." />
         </div>
         <div className="space-y-1.5">
           <Label>Slug (URL)</Label>
-          <Input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} dir="ltr" placeholder="auto-generated" />
+          <Input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} dir="ltr" placeholder="خالی=خودکار" />
         </div>
       </div>
 
+      {/* Excerpt */}
       <div className="space-y-1.5">
         <Label>خلاصه *</Label>
-        <Textarea value={form.excerpt} onChange={(e) => setForm({ ...form, excerpt: e.target.value })} rows={2} required />
+        <Textarea value={form.excerpt} onChange={(e) => setForm({ ...form, excerpt: e.target.value })} rows={2} required placeholder="یک خط خلاصه که در کارت خبر و نتایج جستجو نمایش داده می‌شود" />
       </div>
 
-      <div className="space-y-1.5">
-        <Label>آدرس تصویر کاور</Label>
-        <FileUpload
-          value={form.coverImage}
-          onChange={(url) => setForm({ ...form, coverImage: url })}
-          folder="covers"
-          accept="image/*"
-          preview="image"
-          label=""
-          hint="حداکثر ۱۰ مگابایت - JPG, PNG, WebP"
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <Label>محتوا (HTML)</Label>
-          <div className="flex gap-1 text-xs">
-            <Button type="button" size="sm" variant="outline" onClick={() => insertTag('عنوان', 'h2')}>H2</Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => insertTag('متن', 'p')}>P</Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => insertTag('متن', 'strong')}>B</Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => insertTag('متن', 'em')}>I</Button>
-          </div>
+      {/* Featured image */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label>تصویر شاخص (کاور)</Label>
+          <FileUpload
+            value={form.coverImage}
+            onChange={(url) => setForm({ ...form, coverImage: url })}
+            folder="covers"
+            accept="image/*"
+            preview="image"
+            label=""
+            hint="حداکثر ۱۰ مگابایت - JPG, PNG, WebP"
+          />
         </div>
-        <Textarea
-          id="content-textarea"
-          value={form.content}
-          onChange={(e) => setForm({ ...form, content: e.target.value })}
-          rows={10}
-          dir="ltr"
-          className="font-mono text-xs"
-          required
-        />
-        <p className="text-xs text-muted-foreground">از تگ‌های HTML مانند &lt;h2&gt;, &lt;p&gt;, &lt;strong&gt;, &lt;ul&gt; استفاده کنید.</p>
+        <div className="space-y-1.5">
+          <Label>مدت زمان مطالعه (تخمینی)</Label>
+          <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-secondary/50 text-sm text-muted-foreground">
+            <Clock className="h-4 w-4" />
+            {formatPersianNumber(readingTime)} دقیقه
+          </div>
+          <p className="text-xs text-muted-foreground">به‌طور خودکار از روی محتوا محاسبه می‌شود.</p>
+        </div>
       </div>
 
+      {/* Tabs: Content | SEO | Preview */}
+      <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="content"><Newspaper className="h-3.5 w-3.5 ml-1" />محتوا</TabsTrigger>
+          <TabsTrigger value="seo"><Search className="h-3.5 w-3.5 ml-1" />سئو</TabsTrigger>
+          <TabsTrigger value="preview"><PreviewEye className="h-3.5 w-3.5 ml-1" />پیش‌نمایش</TabsTrigger>
+        </TabsList>
+
+        {/* Content tab — RichTextEditor */}
+        <TabsContent value="content" className="space-y-1.5 mt-3">
+          <Label>محتوای مطلب</Label>
+          <RichTextEditor
+            value={form.contentMd}
+            onChange={(md) => setForm({ ...form, contentMd: md })}
+            placeholder="محتوای مطلب را اینجا بنویسید... (تیتر، پاراگراف، لیست، تصویر، لینک و جدول پشتیبانی می‌شود)"
+            className="min-h-[520px]"
+          />
+          <p className="text-xs text-muted-foreground">
+            متن با ویرایشگر غنی نوشته می‌شود. تصاویر از طریق دکمه تصویر در نوار ابزار آپلود می‌شوند.
+          </p>
+        </TabsContent>
+
+        {/* SEO tab */}
+        <TabsContent value="seo" className="space-y-4 mt-3">
+          <div className="space-y-1.5">
+            <Label>عنوان سئو (Meta Title)</Label>
+            <Input value={form.metaTitle} onChange={(e) => setForm({ ...form, metaTitle: e.target.value })} placeholder={form.title.slice(0, 60) || 'خالی=استفاده از عنوان'} />
+            <CharCount value={form.metaTitle} max={60} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>توضیحات متا (Meta Description)</Label>
+            <Textarea value={form.metaDescription} onChange={(e) => setForm({ ...form, metaDescription: e.target.value })} rows={2} placeholder={autoMetaDescription || 'خالی=استفاده از خلاصه یا محتوا'} />
+            <CharCount value={form.metaDescription || autoMetaDescription} max={160} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>تصویر اشتراک‌گذاری (OG Image)</Label>
+            <FileUpload
+              value={form.ogImage}
+              onChange={(url) => setForm({ ...form, ogImage: url })}
+              folder="og"
+              accept="image/*"
+              preview="image"
+              label=""
+              hint="اختیاری — خالی=استفاده از تصویر کاور. ابعاد پیشنهادی ۱۲۰۰×۶۳۰"
+            />
+          </div>
+        </TabsContent>
+
+        {/* Preview tab */}
+        <TabsContent value="preview" className="mt-3">
+          <div className="rounded-md border border-border bg-background overflow-hidden">
+            {form.coverImage && (
+              <img src={form.coverImage} alt="" className="w-full max-h-[280px] object-cover" />
+            )}
+            <div className="p-5 space-y-3">
+              <h1 className="text-2xl font-bold text-foreground">{form.title || 'عنوان خبر'}</h1>
+              {form.excerpt && <p className="text-muted-foreground">{form.excerpt}</p>}
+              <div
+                className="prose prose-sm sm:prose-base max-w-none text-foreground/90 leading-8"
+                dangerouslySetInnerHTML={{ __html: markdownToHtml(form.contentMd) || '<p class="text-muted-foreground">محتوایی نوشته نشده است.</p>' }}
+              />
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Category / status / tags */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="space-y-1.5">
           <Label>دسته‌بندی</Label>
@@ -375,6 +461,21 @@ function ArticleForm({ initial, categories, onSave, onCancel }: {
         </div>
       </div>
 
+      {/* Scheduled date picker — shown only when status=SCHEDULED */}
+      {form.status === 'SCHEDULED' && (
+        <div className="space-y-1.5 p-3 rounded-md bg-primary/5 border border-primary/20">
+          <Label className="flex items-center gap-1.5"><Calendar className="h-4 w-4" />تاریخ و ساعت انتشار</Label>
+          <Input
+            type="datetime-local"
+            value={form.publishedAt}
+            onChange={(e) => setForm({ ...form, publishedAt: e.target.value })}
+            dir="ltr"
+          />
+          <p className="text-xs text-muted-foreground">خبر در این زمان به‌صورت خودکار منتشر می‌شود (با فرض اینکه زمان‌بندی سرور فعال باشد).</p>
+        </div>
+      )}
+
+      {/* Toggles */}
       <div className="flex flex-wrap gap-6 pt-2">
         <label className="flex items-center gap-2 cursor-pointer">
           <Switch checked={form.isFeatured} onCheckedChange={(c) => setForm({ ...form, isFeatured: c })} />
@@ -384,10 +485,12 @@ function ArticleForm({ initial, categories, onSave, onCancel }: {
           <Switch checked={form.isBreaking} onCheckedChange={(c) => setForm({ ...form, isBreaking: c })} />
           <span className="text-sm">خبر فوری</span>
         </label>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <Switch checked={form.isPublished} onCheckedChange={(c) => setForm({ ...form, isPublished: c })} />
-          <span className="text-sm">منتشر شده</span>
-        </label>
+        {form.status !== 'SCHEDULED' && (
+          <label className="flex items-center gap-2 cursor-pointer">
+            <Switch checked={form.isPublished} onCheckedChange={(c) => setForm({ ...form, isPublished: c })} />
+            <span className="text-sm">منتشر شده</span>
+          </label>
+        )}
       </div>
 
       <div className="flex justify-end gap-2 pt-4 border-t border-border">
@@ -395,5 +498,14 @@ function ArticleForm({ initial, categories, onSave, onCancel }: {
         <Button type="submit">ذخیره</Button>
       </div>
     </form>
+  )
+}
+
+function CharCount({ value, max }: { value: string; max: number }) {
+  const over = value.length > max
+  return (
+    <p className={`text-[10px] ${over ? 'text-destructive' : 'text-muted-foreground'}`}>
+      {value.length} / {max} کاراکتر {over && '(بیش از حد)'}
+    </p>
   )
 }

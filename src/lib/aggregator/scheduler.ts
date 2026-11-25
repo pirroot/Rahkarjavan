@@ -6,6 +6,7 @@
 // convenience for dev/standalone deployments.
 
 import { runDueSources, reactivateExpiredSources } from './index'
+import { db } from '@/lib/db'
 
 declare global {
   // eslint-disable-next-line no-var
@@ -47,6 +48,10 @@ async function heartbeat() {
   if (state.isRunning) return
   state.isRunning = true
   try {
+    // 1. Publish any SCHEDULED articles whose time has come. We do this on
+    // every heartbeat (every minute) so a scheduled article goes live within
+    // 60 seconds of its target time, without needing a separate cron.
+    await publishScheduledArticles()
     await reactivateExpiredSources()
     const results = await runDueSources()
     state.lastRunAt = new Date()
@@ -57,6 +62,30 @@ async function heartbeat() {
     state.lastResults = [{ sourceId: '', sourceName: 'scheduler', status: 'FAILED', errors: [{ url: '', error: String(e) }], found: 0, created: 0, published: 0, skipped: 0, failed: 0, durationMs: 0 }]
   } finally {
     state.isRunning = false
+  }
+}
+
+/**
+ * Sweep: find every SCHEDULED article whose publishedAt is now or in the
+ * past, flip its status to PUBLISHED + isPublished=true. Safe to call every
+ * minute; rows that were already flipped are skipped by the `where` clause.
+ */
+async function publishScheduledArticles(): Promise<number> {
+  try {
+    const now = new Date()
+    const r = await db.article.updateMany({
+      where: {
+        status: 'SCHEDULED',
+        publishedAt: { lte: now },
+      },
+      data: {
+        status: 'PUBLISHED',
+        isPublished: true,
+      },
+    })
+    return r.count
+  } catch {
+    return 0
   }
 }
 

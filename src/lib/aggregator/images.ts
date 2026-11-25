@@ -62,9 +62,14 @@ export async function downloadAndStoreImage(
 }
 
 /**
- * Walk an HTML body, download every <img src=...> to our storage, and rewrite the
- * src attribute to point to our copy. Returns the new HTML plus the cover image URL
- * (the first image that successfully downloads).
+ * Walk an HTML body and resolve every <img src=...> to its absolute URL on the
+ * SOURCE server. We do NOT download or re-host the images — we just keep the
+ * original URL so the source server keeps serving the bytes and our disk stays
+ * empty. This is what the client asked for ("عکس رو از منبع نشون بده، روی هاست
+ * ما ذخیره نکن").
+ *
+ * Returns the new HTML plus the cover image URL (the first usable image's
+ * absolute URL). Broken images (data: URIs, empty src) are removed.
  */
 export async function rehostImages(
   html: string,
@@ -77,20 +82,16 @@ export async function rehostImages(
   for (const el of imgs) {
     const $el = $(el)
     const src = $el.attr('src') || $el.attr('data-src') || ''
-    if (!src) continue
-    if (src.startsWith('data:')) continue // keep inline data-urls as-is
-    const res = await downloadAndStoreImage(src, baseUrl, settings)
-    if (res.ok && res.url) {
-      if (!coverImage) coverImage = res.url
-      $el.attr('src', res.url)
-      // remove srcset (we replaced only the main src)
-      $el.removeAttr('srcset')
-      // lazy-load
-      $el.attr('loading', 'lazy')
-    } else {
-      // drop the broken image
-      $el.remove()
-    }
+    if (!src) { $el.remove(); continue }
+    if (src.startsWith('data:')) { $el.remove(); continue }
+    const abs = resolveUrl(src, baseUrl)
+    if (!abs) { $el.remove(); continue }
+    // Keep the original URL — the source server keeps serving the bytes.
+    $el.attr('src', abs)
+    $el.removeAttr('srcset')
+    $el.attr('loading', 'lazy')
+    $el.attr('referrerpolicy', 'no-referrer')
+    if (!coverImage) coverImage = abs
   }
   return { html: $.html(), coverImage }
 }
@@ -101,4 +102,32 @@ function pickExtension(url: string, contentType: string): string {
   const sub = contentType.split('/')[1]?.split(';')[0]
   if (sub && MIME_BY_EXT[sub.toLowerCase()]) return '.' + sub.toLowerCase()
   return '.jpg'
+}
+
+/**
+ * Branded fallback cover generator — DISABLED.
+ *
+ * The client asked us NOT to save any image on our server (whether downloaded
+ * from the source or generated locally), to keep the disk light on a 8GB VPS.
+ * The frontend (VisualMediaHome + ArticleCard) already renders a deterministic
+ * branded gradient placeholder when coverImage is empty, so there is no need
+ * to render anything on the server. We return null and let the caller save
+ * the article with an empty coverImage.
+ */
+export async function generateCategoryCover(_opts: {
+  categoryName?: string | null
+  categoryColor?: string | null
+  sourceName?: string | null
+  title?: string
+}): Promise<string | null> {
+  return null
+}
+
+function escapeXml(s: string): string {
+  return (s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
 }

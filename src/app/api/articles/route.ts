@@ -35,12 +35,24 @@ export async function GET(req: NextRequest) {
       ? { views: 'desc' as const }
       : { publishedAt: 'desc' as const }
 
-  const articles = await db.article.findMany({
+  let articles = await db.article.findMany({
     where,
     orderBy,
     take: limit,
     include: { category: true, author: true },
   })
+
+  // Featured fallback: when the admin has not marked any article as featured
+  // (the default for aggregator-imported news), fall back to the latest
+  // published articles so the homepage hero is never empty.
+  if (featured === 'true' && articles.length === 0) {
+    articles = await db.article.findMany({
+      where: { isPublished: true, status: 'PUBLISHED' },
+      orderBy: { publishedAt: 'desc' as const },
+      take: limit,
+      include: { category: true, author: true },
+    })
+  }
 
   return NextResponse.json({ articles })
 }

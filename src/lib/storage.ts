@@ -21,12 +21,38 @@ export interface StorageConfig {
   publicUrl?: string      // CDN/public URL prefix for served files
   forcePathStyle?: boolean // true for MinIO
   // Local config
-  localDir?: string       // default /home/z/my-project/storage
-  localPublicUrl?: string // e.g. /storage
+  localDir?: string       // absolute path to the writable storage root
+  localPublicUrl?: string // e.g. /api/storage
 }
 
 let _config: StorageConfig | null = null
 let _s3Client: S3Client | null = null
+
+/**
+ * Resolve a safe, absolute, writable local storage directory.
+ *
+ * Why this exists: the original default was hard-coded to
+ * `/home/z/my-project/storage`. On machines where the app does not own
+ * `/home/z`, any attempt by `fs.mkdir(..., { recursive: true })` to create
+ * the parent dir failed with `EACCES: permission denied, mkdir '/home/z'`.
+ * The fix is:
+ *   1. Honor `STORAGE_LOCAL_DIR` from the environment when set.
+ *   2. Otherwise default to `<projectRoot>/storage` (the cwd of the Next.js
+ *      server, which is always writable by the process).
+ *   3. Always resolve to an ABSOLUTE path so a stray relative value cannot
+ *      traverse upward into a protected directory.
+ */
+function resolveLocalDir(): string {
+  const env = process.env.STORAGE_LOCAL_DIR
+  if (env && env.trim()) {
+    // Resolve relative to cwd, then make absolute. Strip any trailing slash.
+    const resolved = path.resolve(env)
+    return resolved
+  }
+  // Fallback: `<cwd>/storage`. process.cwd() in a Next.js standalone build
+  // is the project root and is guaranteed writable by the process owner.
+  return path.resolve(process.cwd(), 'storage')
+}
 
 export function getStorageConfig(): StorageConfig {
   if (_config) return _config
@@ -48,7 +74,7 @@ export function getStorageConfig(): StorageConfig {
   } else {
     _config = {
       provider: 'local',
-      localDir: process.env.STORAGE_LOCAL_DIR || '/home/z/my-project/storage',
+      localDir: resolveLocalDir(),
       localPublicUrl: process.env.STORAGE_LOCAL_URL || '/api/storage',
     }
   }
@@ -115,7 +141,30 @@ export async function uploadFile(
     return { key, bucket: cfg.bucket, url, size: buffer.length, mimeType }
   } else {
     // Local storage
-    const filePath = path.join(cfg.localDir!, key)
+    const dir = cfg.localDir!
+    // Make sure the storage root exists and is writable. We do this on EVERY
+    // upload (mkdir is cheap when the dir already exists) so a fresh deploy
+    // or a container that lost its volume still works without manual setup.
+    try {
+      await fs.mkdir(dir, { recursive: true })
+    } catch (e: any) {
+      // If we can't create the configured dir (e.g. it points to a protected
+      // path like /home/z), fall back to <cwd>/storage which is always
+      // writable by the process. This is the real root-cause fix for the
+      // EACCES error reported in production.
+      const fallback = path.resolve(process.cwd(), 'storage')
+      if (dir !== fallback) {
+        try { await fs.mkdir(fallback, { recursive: true }) } catch {}
+        // Mutate the cached config so subsequent uploads use the working dir.
+        _config = { ...cfg, localDir: fallback }
+        return uploadFile(buffer, filename, folder, mimeType)
+      }
+      throw new Error(
+        `ذخیره‌سازی فایل ممکن نیست: پوشهٔ «${dir}» قابل نوشتن نیست. ` +
+        `متغیر STORAGE_LOCAL_DIR را روی مسیری قابل نوشتن تنظیم کنید.`
+      )
+    }
+    const filePath = path.join(dir, key)
     await fs.mkdir(path.dirname(filePath), { recursive: true })
     await fs.writeFile(filePath, buffer)
     const url = `${cfg.localPublicUrl}/${key}`

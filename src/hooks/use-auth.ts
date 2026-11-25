@@ -27,10 +27,24 @@ export function useAuth() {
     }
   }, [setUser, setLoadingUser])
 
+  // Logout — call the server endpoint, wait for it, clear local state, and
+  // force a full page reload. A hard reload is the most reliable way to drop
+  // any cached NextAuth/JWT state in client memory; it also re-runs `useAuth`
+  // from scratch and the `/api/auth/me` call returns null cleanly.
   const logout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' })
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
+    } catch {
+      // ignore network errors — we still want to clear local state
+    }
     setUser(null)
     useStore.getState().navigate('home')
+    if (typeof window !== 'undefined') {
+      // Hard reset: clears any in-memory NextAuth session and forces a fresh
+      // boot of the app. Without this, getSession() could return a stale
+      // cached user on the next navigation.
+      window.location.href = '/'
+    }
   }
 
   return { user, loadingUser, logout }

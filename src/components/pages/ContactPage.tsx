@@ -52,7 +52,7 @@ export function ContactPage() {
             <div className="bg-card border border-border rounded-2xl p-6 sm:p-8">
               <h1 className="text-2xl font-bold text-foreground mb-2">تماس با ما</h1>
               <p className="text-muted-foreground text-sm mb-6">
-                پیشنهاد، انتقاد یا همکاری دارید؟ فرم زیر را پر کنید.
+                {settings.contact_text || 'پیشنهاد، انتقاد یا همکاری دارید؟ فرم زیر را پر کنید.'}
               </p>
 
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -147,14 +147,25 @@ export function ContactPage() {
                     </div>
                   </li>
                 )}
-                {settings.address && (
+                {settings.contact_address && (
                   <li className="flex items-start gap-3">
                     <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center text-primary shrink-0">
                       <MapPin className="h-4 w-4" />
                     </div>
                     <div>
                       <div className="text-xs text-muted-foreground mb-0.5">نشانی</div>
-                      <p className="text-sm text-foreground leading-6">{settings.address}</p>
+                      <p className="text-sm text-foreground leading-6">{settings.contact_address}</p>
+                    </div>
+                  </li>
+                )}
+                {settings.contact_hours && (
+                  <li className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                      <Phone className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-0.5">ساعات کاری</div>
+                      <p className="text-sm text-foreground leading-6">{settings.contact_hours}</p>
                     </div>
                   </li>
                 )}

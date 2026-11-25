@@ -18,12 +18,13 @@ export async function GET() {
 
   if (!(await requireAdmin())) return NextResponse.json({ status: null, stats: null })
 
-  const [totalSources, activeSources, disabledSources, todayLogs, totalArticles] = await Promise.all([
+  const [totalSources, activeSources, disabledSources, todayLogs, totalArticles, todayArticles] = await Promise.all([
     db.newsSource.count(),
     db.newsSource.count({ where: { isActive: true } }),
     db.newsSource.count({ where: { isActive: false, autoDisabledAt: { not: null } } }),
     db.crawlLog.count({ where: { startedAt: { gte: startOfToday() } } }),
     db.article.count({ where: { isAutoImported: true } }),
+    db.article.count({ where: { isAutoImported: true, isPublished: true, createdAt: { gte: startOfToday() } } }),
   ])
   const published = await db.article.count({ where: { isAutoImported: true, isPublished: true } })
   const drafts = await db.article.count({ where: { isAutoImported: true, isPublished: false } })
@@ -35,6 +36,7 @@ export async function GET() {
     stats: {
       totalSources, activeSources, disabledSources,
       todayRuns: todayLogs,
+      todayArticles,
       totalArticles, published, drafts,
       failedToday: failed,
     },

@@ -1,47 +1,40 @@
 import type { Metadata } from "next";
-import { Vazirmatn } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Providers } from "@/components/Providers";
+import { buildGlobalMetadata } from "@/lib/seo";
 
-const vazirmatn = Vazirmatn({
-  subsets: ["arabic", "latin"],
+// Use the Vazirmatn font self-hosted under /public/fonts so the build does
+// NOT depend on a network fetch to Google Fonts at build time (which was
+// failing in restricted sandboxes). The .woff2 files are shipped with the
+// project so the build is fully offline-friendly.
+const vazirmatn = localFont({
+  src: [
+    {
+      path: "../../public/fonts/Vazirmatn-Regular.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../../public/fonts/Vazirmatn-Bold.woff2",
+      weight: "700",
+      style: "normal",
+    },
+  ],
   variable: "--font-vazirmatn",
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "پایگاه خبری راهکار جوان | رسانه تصویری و مجله",
-  description:
-    "پایگاه خبری راهکار جوان، رسانه‌ای مستقل با تمرکز بر اخبار و مسائل جوانان ایران و جهان. ویدیوهای خبری، مصاحبه، گزارش‌های تصویری و مجله تخصصی.",
-  keywords: [
-    "راهکار جوان",
-    "اخبار جوانان",
-    "رسانه تصویری",
-    "مجله خبری",
-    "اخبار ایران",
-    "ویدیو خبری",
-    "Rahkar Javan",
-  ],
-  authors: [{ name: "Rahkar Javan" }],
-  icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-  },
-  openGraph: {
-    title: "پایگاه خبری راهکار جوان",
-    description: "رسانه‌ای مستقل با تمرکز بر اخبار و مسائل جوانان",
-    url: "https://rahkarjavan.ir",
-    siteName: "راهکار جوان",
-    locale: "fa_IR",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "پایگاه خبری راهکار جوان",
-    description: "رسانه‌ای مستقل با تمرکز بر اخبار و مسائل جوانان",
-  },
-};
+// Dynamic metadata: merges the admin-configured SEO settings (from the
+// SiteSetting table) with sane defaults, so the homepage always has correct
+// title / description / OpenGraph / Twitter / canonical. Per-page metadata
+// (article, video, category) is generated in their respective server routes
+// via generateMetadata and overrides these.
+export async function generateMetadata(): Promise<Metadata> {
+  return buildGlobalMetadata();
+}
 
 export default function RootLayout({
   children,

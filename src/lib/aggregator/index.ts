@@ -2,7 +2,6 @@
 // پایگاه خبری راهکار جوان
 
 import { db } from '@/lib/db'
-import * as cheerio from 'cheerio'
 import {
   AggregatorSettings, SourceRunResult, getAggregatorSettings,
   normalizeUrl, parseStringArray, parseStringObject, titleHash,
@@ -11,20 +10,8 @@ import { discoverArticles } from './discover'
 import { extractArticle } from './extract'
 import { cleanHtml, urlHost } from './clean'
 import { loadReplaceRules, applyRulesToArticle } from './replace'
-import { rehostImages, downloadAndStoreImage } from './images'
+import { rehostImages } from './images'
 import { alreadyImported, publishArticle } from './publish'
-
-/** Remove every <img> tag from an HTML body (used in text-only import mode). */
-function stripImages(html: string): string {
-  try {
-    const $ = cheerio.load(html)
-    $('img, figure, picture, source').remove()
-    return $.html()
-  } catch {
-    // fallback: naive strip
-    return html.replace(/<img[^>]*>/gi, '').replace(/<\/?(figure|picture|source)[^>]*>/gi, '')
-  }
-}
 
 const MAX_CONSECUTIVE_FAILURES = 5
 const AUTO_DISABLE_HOURS = 3
@@ -176,7 +163,15 @@ export async function runSource(
           s.respectRobots,
         )
         if (!extracted) { skipped++; continue }
-        if (!extracted.title || extracted.contentHtml.length < cfg.minContentLength) {
+        // Reject items with no title, or whose body is shorter than the
+        // configured minimum. SPA sources (Fars, IRNA, ...) that only expose
+        // <meta og:description> set isOgFallback=true; for those a single lead
+        // paragraph (>= 80 chars) is acceptable even if shorter than the
+        // global minContentLength.
+        const tooShort = !extracted.isOgFallback
+          ? extracted.contentHtml.length < cfg.minContentLength
+          : extracted.contentHtml.length < 80
+        if (!extracted.title || tooShort) {
           skipped++
           continue
         }
@@ -195,62 +190,40 @@ export async function runSource(
           replaceRules,
         )
 
-        // re-host images (downloads each <img>)
-        // When importImages is OFF, we publish text-only: drop all <img> tags
-        // from the body and save coverImage as empty. This is the "فقط متن،
-        // بدون تصویر" mode the client asked for to avoid copyright issues with
-        // republishing other agencies' photos.
+        // Image handling — we NEVER download or re-host images on our server.
+        // rehostImages() now resolves every <img> to its absolute URL on the
+        // source server and leaves it there, so the source keeps serving the
+        // bytes and our disk stays light. The cover image is set to the first
+        // in-body image's URL (the source serves it directly).
+        //
+        // The `importImages` flag no longer controls "download vs not" (we
+        // never download). It only controls whether the cover is saved at
+        // all: when false we keep coverImage empty so the frontend shows the
+        // branded gradient placeholder; in-body images are still shown from
+        // the source URL either way.
         let finalHtml = contentHtml
         let chosenCover: string | undefined
+        const re = await rehostImages(contentHtml, extracted.url, cfg)
+        finalHtml = re.html
         if (cfg.importImages) {
-          const re = await rehostImages(contentHtml, extracted.url, cfg)
-          finalHtml = re.html
-          chosenCover = re.coverImage
-          if (!chosenCover && extracted.coverImage) {
-            // download cover separately
-            const r = await downloadAndStoreImage(extracted.coverImage, extracted.url, cfg)
-            if (r.ok && r.url) chosenCover = r.url
-          }
+          // keep the cover from the body OR the explicit og:image
+          chosenCover = re.coverImage || extracted.coverImage
         } else {
-          // strip every <img> tag from the body (text-only mode)
-          finalHtml = stripImages(contentHtml)
+          // text-only mode: keep in-body images visible from source URLs,
+          // but leave coverImage empty so the homepage renders the branded
+          // gradient placeholder (no copyrighted photo on our listing).
           chosenCover = undefined
         }
 
-        // ---- Routing requirement ----
-        // - When importImages is ON: every imported item MUST have either a video
-        //   or a cover image (otherwise rejected).
-        // - When importImages is OFF (text-only mode): media is NOT required —
-        //   we save the article with empty coverImage. The client explicitly
-        //   asked for this ("تصویرش اصلاً نیاد، فقط متنش بیاد").
-        const hasVideo = !!extracted.videoUrl
+        // No server-side cover generation — the frontend renders a branded
+        // gradient placeholder when coverImage is empty.
 
-        // Global switch: when settings.importVideos is false, video pages are
-        // NOT saved as videos. If such a page has no cover image either (and
-        // importImages is on), we skip it. If importImages is off, we save it
-        // as a plain Article (text-only).
-        if (hasVideo && !cfg.importVideos && !cfg.importImages && !chosenCover) {
-          // can't happen: importImages off means chosenCover is undefined
-          // but we still save text-only — handled below. Keep this branch as
-          // a no-op safety.
-        }
-
-        if (!hasVideo && !chosenCover && !cfg.importImages) {
-          // text-only mode: allow saving without any media
-        }
-
-        if (!hasVideo && !chosenCover && cfg.importImages) {
-          skipped++
-          errors.push({ url: item.url, error: 'no media — skipped (no video and no image)' })
-          continue
-        }
-        // For a video item that we will actually save as a Video, a video category
-        // (or at least a default category) is required; without one we skip.
-        if (hasVideo && cfg.importVideos && !s.videoCategoryId && !s.defaultCategoryId) {
-          skipped++
-          errors.push({ url: item.url, error: 'video found but no video/default category set — skipped' })
-          continue
-        }
+        // ---- Routing requirement (simplified, text-only mode) ----
+        // We never save aggregator-imported items as Videos — the client
+        // uploads videos manually. We always save as a plain Article. There
+        // is no media requirement in text-only mode: coverImage may be empty
+        // (the frontend renders a branded gradient placeholder).
+        // The video URL, if any, is simply ignored.
 
         // publish
         const result = await publishArticle({

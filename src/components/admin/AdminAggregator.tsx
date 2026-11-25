@@ -123,7 +123,7 @@ function StatusBanner() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatBox label="منابع فعال" value={stats?.activeSources ?? 0} />
-          <StatBox label="خبر وارد‌شده امروز" value={stats?.todayRuns ?? 0} />
+          <StatBox label="خبر منتشرشده امروز" value={stats?.todayArticles ?? 0} />
           <StatBox label="کل خبرهای اتوماتیک" value={stats?.totalArticles ?? 0} />
           <StatBox label="منابع غیرفعال (خطای زیاد)" value={stats?.disabledSources ?? 0} danger />
         </div>

@@ -42,6 +42,30 @@ export async function discoverArticles(
         // fall through to RSS
       }
     }
+    // Fars News "showcase" pages: https://farsnews.ir/politics/showcase,
+    // https://farsnews.ir/Nojavan/showcase, etc. These are HTML listing
+    // pages where every article card links to /politics/news/... or
+    // /Nojavan/news/... — so we treat them as listing pages with a default
+    // link selector that targets any anchor whose href contains /news/.
+    if (lower.includes('/showcase')) {
+      try {
+        const items = await discoverFromListing(
+          {
+            listingUrl: cfg.rssUrl,
+            // If the admin set an explicit linkSelector, honor it; otherwise
+            // default to "every anchor" and filter to /news/ links below.
+            linkSelector: cfg.linkSelector || 'a[href*="/news/"]',
+            baseUrl: cfg.baseUrl,
+          },
+          settings,
+          limit,
+          respectRobots,
+        )
+        if (items.length) return items
+      } catch {
+        // fall through to RSS
+      }
+    }
     try {
       const items = await discoverFromRss(cfg.rssUrl, settings, limit)
       if (items.length) return items
@@ -181,7 +205,9 @@ async function discoverFromSitemapUrl(
   // queue of sitemaps to fetch; start with the user-supplied one
   const queue: string[] = [sitemapUrl]
   let fetchedSitemaps = 0
-  const MAX_SITEMAPS = 5  // safety cap to avoid runaway crawls
+  const MAX_SITEMAPS = 15  // safety cap; raised from 5 so multi-category
+  // sitemaps (Fars) have enough child sitemaps scanned to find items for
+  // less-frequent categories like /economic/ or /Nojavan/.
 
   while (queue.length && items.length < limit && fetchedSitemaps < MAX_SITEMAPS) {
     const url = queue.shift()!

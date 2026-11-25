@@ -1,5 +1,14 @@
 'use client'
 
+// AboutPage — public About Us page.
+// پایگاه خبری راهکار جوان
+//
+// All text is editable from the admin dashboard (AdminPages → About). When a
+// field is empty we fall back to a sensible default so the page never looks
+// broken before the admin has filled it in. We deliberately do NOT show a
+// team members grid — the client asked us to keep About/Contact minimal and
+// professional.
+
 import { useStore } from '@/lib/store'
 import { useSettings } from '@/hooks/use-auth'
 import { ChevronLeft, Target, Eye, Heart, Users } from 'lucide-react'
@@ -7,6 +16,31 @@ import { ChevronLeft, Target, Eye, Heart, Users } from 'lucide-react'
 export function AboutPage() {
   const { navigate } = useStore()
   const settings = useSettings()
+
+  const aboutText =
+    settings.about_text ||
+    'پایگاه خبری راهکار جوان، رسانه‌ای مستقل با تمرکز بر اخبار و مسائل جوانان ایران و جهان است.'
+
+  // Each value card pulls its body text from settings, with a default that
+  // matches the original copy so the page is never empty.
+  const mission = settings.about_mission ||
+    'صدای واقعی نسل جوان را به گوش همه برسانیم و رسانه‌ای برای جوانان توسط جوانان باشیم.'
+  const vision = settings.about_vision ||
+    'تبدیل شدن به معتبرترین رسانه جوانان در منطقه و مرجع اصلی اخبار اجتماعی، فرهنگی.'
+  const values = settings.about_values ||
+    'صداقت، استقلال، احترام به تنوع و تعهد به حقیقت، اصول بنیادین ماست.'
+  const audience = settings.about_audience ||
+    'جوانان ۱۵ تا ۳۵ سال و تمام علاقه‌مندان به اخبار اجتماعی، فرهنگی و اقتصادی.'
+
+  // The "story" section is admin-editable multi-paragraph text. Each line
+  // becomes its own <p>. When empty we use the original default copy.
+  const storyText = settings.about_story || (
+    'پایگاه خبری راهکار جوان با هدف پر کردن شکافی بزرگ در رسانه‌های ایران شکل گرفت؛ رسانه‌ای که صدای جوانان باشد و از زاویه دید آن‌ها به جهان نگاه کند.\n' +
+    'ما باور داریم که جوانان ایرانی، با تمام پتانسیل، انرژی و خلاقیتشان، سزاوار رسانه‌ای مستقل و حرفه‌ای هستند که دغدغه‌های آن‌ها را بازتاب دهد و فرصت‌های پیش رویشان را روشن کند.\n' +
+    'از همان ابتدا، تصمیم گرفتیم رسانه‌ای دوگانه بسازیم: یک بخش رسانه تصویری که ویدیوهای خبری، مصاحبه و گزارش‌های تصویری را در مرکز توجه قرار می‌دهد، و یک مجله خبری که تحلیل‌های عمیق‌تر و گزارش‌های تخصصی ارائه می‌کند.\n' +
+    'امروز، با تیمی از جوانان روزنامه‌نگار، فیلم‌ساز و عکاس، در تلاشیم تا داستان‌هایی را روایت کنیم که کمتر شنیده شده‌اند و چهره‌هایی را معرفی کنیم که الهام‌بخش نسل جدید هستند.'
+  )
+  const storyParagraphs = storyText.split('\n').map((p) => p.trim()).filter(Boolean)
 
   return (
     <div className="animate-fade-in">
@@ -32,47 +66,23 @@ export function AboutPage() {
                 <p className="text-sm text-muted-foreground">رسانه تصویری و مجله خبری</p>
               </div>
             </div>
-            <p className="text-base sm:text-lg text-muted-foreground leading-8">
-              {settings.about_text || 'پایگاه خبری راهکار جوان، رسانه‌ای مستقل با تمرکز بر اخبار و مسائل جوانان ایران و جهان است.'}
-            </p>
+            <p className="text-base sm:text-lg text-muted-foreground leading-8">{aboutText}</p>
           </div>
         </section>
 
         {/* Values */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-          <ValueCard icon={<Target className="h-6 w-6" />} title="مأموریت ما" text="صدای واقعی نسل جوان را به گوش همه برسانیم و رسانه‌ای برای جوانان توسط جوانان باشیم." color="bg-red-500" />
-          <ValueCard icon={<Eye className="h-6 w-6" />} title="چشم‌انداز" text="تبدیل شدن به معتبرترین رسانه جوانان در منطقه و مرجع اصلی اخبار اجتماعی، فرهنگی." color="bg-blue-500" />
-          <ValueCard icon={<Heart className="h-6 w-6" />} title="ارزش‌ها" text="صداقت، استقلال، احترام به تنوع و تعهد به حقیقت، اصول بنیادین ماست." color="bg-emerald-500" />
-          <ValueCard icon={<Users className="h-6 w-6" />} title="جامعه هدف" text="جوانان ۱۵ تا ۳۵ سال و تمام علاقه‌مندان به اخبار اجتماعی، فرهنگی و اقتصادی." color="bg-purple-500" />
+          <ValueCard icon={<Target className="h-6 w-6" />} title="مأموریت ما" text={mission} color="bg-red-500" />
+          <ValueCard icon={<Eye className="h-6 w-6" />} title="چشم‌انداز" text={vision} color="bg-blue-500" />
+          <ValueCard icon={<Heart className="h-6 w-6" />} title="ارزش‌ها" text={values} color="bg-emerald-500" />
+          <ValueCard icon={<Users className="h-6 w-6" />} title="جامعه هدف" text={audience} color="bg-purple-500" />
         </section>
 
-        {/* Story */}
+        {/* Story — admin-editable multi-paragraph text */}
         <section className="bg-card border border-border rounded-2xl p-6 sm:p-10 mb-8">
           <h2 className="text-xl font-bold text-foreground mb-4">داستان ما</h2>
           <div className="prose prose-sm sm:prose-base max-w-none text-muted-foreground leading-8 space-y-4">
-            <p>
-              پایگاه خبری راهکار جوان در سال ۱۴۰۴ با هدف پر کردن شکافی بزرگ در رسانه‌های ایران شکل گرفت؛ رسانه‌ای که صدای جوانان باشد و از زاویه دید آن‌ها به جهان نگاه کند.
-            </p>
-            <p>
-              ما باور داریم که جوانان ایرانی، با تمام پتانسیل، انرژی و خلاقیتشان، deserve رسانه‌ای مستقل و حرفه‌ای دارند که دغدغه‌های آن‌ها را بازتاب دهد و فرصت‌های پیش رویشان را روشن کند.
-            </p>
-            <p>
-              از همان ابتدا، تصمیم گرفتیم رسانه‌ای دوگانه بسازیم: یک بخش رسانه تصویری که ویدیوهای خبری، مصاحبه و گزارش‌های تصویری را در مرکز توجه قرار می‌دهد، و یک مجله خبری که تحلیل‌های عمیق‌تر و گزارش‌های تخصصی ارائه می‌کند.
-            </p>
-            <p>
-              امروز، با تیمی از جوانان روزنامه‌نگار، فیلم‌ساز و عکاس، در تلاشیم تا داستان‌هایی را روایت کنیم که کمتر شنیده شده‌اند و چهره‌هایی را معرفی کنیم که الهام‌بخش نسل جدید هستند.
-            </p>
-          </div>
-        </section>
-
-        {/* Team */}
-        <section className="mb-8">
-          <h2 className="text-xl font-bold text-foreground mb-4">تیم راهکار جوان</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            <TeamMember name="راهکار جوان" role="بنیان‌گذار" />
-            <TeamMember name="نگار احمدی" role="سردبیر مجله" />
-            <TeamMember name="آرش رحیمی" role="سرپرست رسانه تصویری" />
-            <TeamMember name="مریم حسینی" role="گزارشگر و مصاحبه‌گر" />
+            {storyParagraphs.map((p, i) => <p key={i}>{p}</p>)}
           </div>
         </section>
 
@@ -102,18 +112,6 @@ function ValueCard({ icon, title, text, color }: { icon: React.ReactNode; title:
       </div>
       <h3 className="font-bold text-foreground mb-2">{title}</h3>
       <p className="text-sm text-muted-foreground leading-6">{text}</p>
-    </div>
-  )
-}
-
-function TeamMember({ name, role }: { name: string; role: string }) {
-  return (
-    <div className="bg-card border border-border rounded-xl p-4 text-center">
-      <div className="w-16 h-16 rounded-full bg-primary/20 mx-auto mb-3 flex items-center justify-center text-2xl font-bold text-primary">
-        {name.charAt(0)}
-      </div>
-      <h4 className="font-medium text-foreground">{name}</h4>
-      <p className="text-xs text-muted-foreground mt-1">{role}</p>
     </div>
   )
 }

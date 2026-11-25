@@ -15,6 +15,7 @@ import {
   Tag,
   MessageCircle,
   Send,
+  BookOpen,
   ExternalLink,
   Languages,
   Loader2,
@@ -227,6 +228,12 @@ export function ArticleDetailPage({ slug }: Props) {
                 <Clock className="h-4 w-4" />
                 {formatPersianDateLong(article.publishedAt || article.createdAt)}
               </span>
+              {article.readingTime ? (
+                <span className="flex items-center gap-1">
+                  <BookOpen className="h-4 w-4" />
+                  {formatPersianNumber(article.readingTime)} دقیقه مطالعه
+                </span>
+              ) : null}
               <span className="flex items-center gap-1">
                 <Eye className="h-4 w-4" />
                 {formatPersianNumber(article.views)} بازدید

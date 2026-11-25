@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { formatPersianNumber, toPersianDigits } from '@/lib/utils'
-import { Save, Loader2, Terminal, Key, Video, ImageIcon } from 'lucide-react'
+import { Save, Loader2, Terminal, Key, ImageIcon } from 'lucide-react'
 
 interface Settings {
   siteName: string
@@ -119,57 +119,17 @@ export function SettingsSection() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Video className="h-4 w-4" /> مسیریابی رسانه (ویدیو / عکس)
+            <ImageIcon className="h-4 w-4" /> حالت درون‌ریزی خبر
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm leading-relaxed">
-            <strong>قانون:</strong> هر صفحه‌ی خبری حداقل باید یک عکس داشته باشد تا وارد شود.
-            اگر این گزینه <strong>روشن</strong> باشد، صفحاتی که ویدیو جاسازی‌شده دارند به‌عنوان
-            «ویدیو» ذخیره می‌شوند؛ اگر <strong>خاموش</strong> باشد، ویدیوها نادیده گرفته می‌شوند و
-            فقط صفحات عکس‌دار به‌عنوان مقاله‌ی مجله وارد می‌شوند.
+            <strong>ساده برای شما:</strong> این سیستم فقط <strong>متن خبر</strong> را از منابع می‌گیرد
+            و در سایت شما منتشر می‌کند. <strong>ویدیو هرگز خودکار وارد نمی‌شود</strong> — ویدیوها را
+            خودتان دستی از پنل مدیریت اضافه می‌کنید. عکس‌های خبر هم روی هاست شما ذخیره نمی‌شوند
+            (فضای سرور پر نمی‌شود)؛ عکس اصلی منبع همان‌طور که هست نمایش داده می‌شود و اگر نباشد،
+            یک کاور رنگی ساده جای آن می‌نشیند.
           </div>
-          <FieldRow label="وارد کردن ویدیوها (در صورت خاموش بودن، فقط خبرهای عکس‌دار وارد می‌شوند)">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => set('importVideos', !settings.importVideos)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.importVideos ? 'bg-primary' : 'bg-muted'}`}
-                aria-pressed={settings.importVideos}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${settings.importVideos ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
-              <span className="text-sm text-muted-foreground">
-                {settings.importVideos
-                  ? '✓ فعال — ویدیوها وارد می‌شوند'
-                  : '✗ غیرفعال — فقط عکس‌دار (پیشنهاد فعلی به‌خاطر محدودیت رم)'}
-              </span>
-            </div>
-          </FieldRow>
-
-          {/* Image importing — text-only mode the client requested */}
-          <FieldRow label="وارد کردن تصاویر (خاموش = حالت «فقط متن» بدون عکس)">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => set('importImages', !settings.importImages)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.importImages ? 'bg-primary' : 'bg-muted'}`}
-                aria-pressed={settings.importImages}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${settings.importImages ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
-              <span className="text-sm text-muted-foreground">
-                {settings.importImages
-                  ? '✓ فعال — تصاویر اصلی کپی و روی سرور ما ذخیره می‌شوند'
-                  : '✗ غیرفعال — فقط متن خبر وارد می‌شود (پیشنهاد کارفرما برای جلوگیری از کپی‌رایت تصاویر)'}
-              </span>
-            </div>
-          </FieldRow>
-          <p className="text-xs text-muted-foreground leading-6 bg-muted/40 rounded-md p-3">
-            <ImageIcon className="h-3.5 w-3.5 inline-block ml-1" />
-            در حالت «فقط متن»، خبر با همان متن اصلی منبع (کپی‌پیست) ذخیره می‌شود، بدون تصویر.
-            ابتدای متن پیشوند منبع (مثلاً «فارس:») و انتهای آن خط «منبع: … — لینک» اضافه می‌شود.
-          </p>
 
           {/* Latest-only mode — keep the home ticker fresh */}
           <FieldRow label="فقط آخرین خبرها (حالت تازه‌نگه‌داشتن نوار «آخرین خبرها»)">

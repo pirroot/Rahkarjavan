@@ -116,6 +116,10 @@ export interface ExtractedArticle {
   publishedAt?: Date
   category?: string
   author?: string
+  /** True when the body came from <meta og:description> (SPA lead-paragraph mode).
+   *  In this mode the body is intentionally short (one lead paragraph), so
+   *  callers should accept it even if shorter than the global minContentLength. */
+  isOgFallback?: boolean
 }
 
 export interface SourceRunResult {
