@@ -110,32 +110,7 @@ export function VisualMediaHome() {
   return (
     <div className="animate-fade-in">
       {/* Breaking news ticker — top of page, full-width */}
-      {breakingNews.length > 0 && (
-        <div className="bg-destructive text-destructive-foreground border-b border-destructive/30">
-          <div className="container mx-auto px-4">
-            <div className="flex items-center gap-3 py-2">
-              <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded text-xs font-bold whitespace-nowrap shrink-0">
-                <Radio className="h-3.5 w-3.5 animate-pulse" />
-                آخرین اخبار
-              </span>
-              <div className="relative flex-1 overflow-hidden">
-                <div className="flex gap-6 animate-marquee whitespace-nowrap text-sm">
-                  {[...breakingNews, ...breakingNews].map((a, i) => (
-                    <button
-                      key={i}
-                      onClick={() => navigate('article', { slug: a.slug })}
-                      className="hover:underline shrink-0"
-                    >
-                      <span className="opacity-70 ml-1">●</span>
-                      {a.title}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* Hero Section - Featured Article */}
       {heroArticle && (
